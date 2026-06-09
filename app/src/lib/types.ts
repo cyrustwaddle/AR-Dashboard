@@ -1,4 +1,3 @@
-export type GenreLane = 'Indie Electronic' | 'Underground Rap' | 'Other'
 export type Source = 'TikTok FYP' | 'Referral' | 'Instagram' | 'Other'
 export type PlaylistPresence = 'None' | 'Algorithmic' | 'Editorial' | 'Both'
 export type Stage = 'Radar' | 'Contacted' | 'In Conversation' | 'Passed to Ben' | 'Passed' | 'Signed'
@@ -7,9 +6,10 @@ export interface Artist {
   id: string
   created_at: string
   updated_at: string
+  month: string
 
   artist_name: string
-  genre_lane: GenreLane | null
+  genre_lane: string | null
   location: string | null
   tiktok_url: string | null
   spotify_url: string | null
@@ -49,10 +49,10 @@ export interface Onboarding {
   soundcloud_radio: boolean
 }
 
-export type ArtistInsert = Omit<Artist, 'id' | 'created_at' | 'updated_at'>
+// month omitted from required insert fields — DB defaults to current month; override explicitly when needed
+export type ArtistInsert = Omit<Artist, 'id' | 'created_at' | 'updated_at' | 'month'> & { month?: string }
 export type ArtistUpdate = Partial<ArtistInsert>
 
-// Supabase generated-types shim so createClient<Database> types correctly
 export interface Database {
   public: {
     Tables: {
@@ -76,7 +76,6 @@ export interface Database {
   }
 }
 
-// Derived computed fields (not stored)
 export interface ArtistWithGrowth extends Artist {
   tiktok_growth_pct: number | null
   spotify_growth_pct: number | null
@@ -96,7 +95,6 @@ export function computeGrowth(artist: Artist): ArtistWithGrowth {
   return { ...artist, tiktok_growth_pct, spotify_growth_pct }
 }
 
-export const GENRE_LANES: GenreLane[] = ['Indie Electronic', 'Underground Rap', 'Other']
 export const SOURCES: Source[] = ['TikTok FYP', 'Referral', 'Instagram', 'Other']
 export const PLAYLIST_PRESENCES: PlaylistPresence[] = ['None', 'Algorithmic', 'Editorial', 'Both']
 export const STAGES: Stage[] = ['Radar', 'Contacted', 'In Conversation', 'Passed to Ben', 'Passed', 'Signed']

@@ -2,6 +2,10 @@ import { useEffect, useState, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import type { Onboarding, Artist } from '../lib/types'
 
+interface Props {
+  month: string
+}
+
 interface Row extends Onboarding {
   artist_name: string
 }
@@ -30,35 +34,54 @@ function isFullyOnboarded(row: Row): boolean {
   return CHECKBOX_FIELDS.every(f => row[f.key])
 }
 
-export default function OnboardingView() {
+export default function OnboardingView({ month }: Props) {
   const [rows, setRows] = useState<Row[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
-    // Join onboarding with artists to get artist_name
+
+    // Get artist IDs for this month first
+    const { data: monthArtists, error: artistsErr } = await supabase
+      .from('artists')
+      .select('id')
+      .eq('month', month)
+
+    if (artistsErr) { setError(artistsErr.message); setLoading(false); return }
+
+    const artistIds = (monthArtists ?? []).map((a: { id: string }) => a.id)
+
+    if (artistIds.length === 0) {
+      setRows([])
+      setLoading(false)
+      return
+    }
+
     const { data, error } = await supabase
       .from('onboarding')
       .select('*, artists(artist_name)')
-      .order('artists(artist_name)', { ascending: true })
+      .in('artist_id', artistIds)
 
     if (error) { setError(error.message); setLoading(false); return }
 
-    const mapped: Row[] = (data ?? []).map((d: Onboarding & { artists: Pick<Artist, 'artist_name'> | null }) => ({
-      id: d.id,
-      artist_id: d.artist_id,
-      artist_name: d.artists?.artist_name ?? 'Unknown',
-      spotify_discovered_on: d.spotify_discovered_on,
-      spotify_similar_artists: d.spotify_similar_artists,
-      spotify_radio: d.spotify_radio,
-      tiktok_follow: d.tiktok_follow,
-      interact_3_posts: d.interact_3_posts,
-      soundcloud_radio: d.soundcloud_radio,
-    }))
+    const mapped: Row[] = (data ?? [])
+      .map((d: Onboarding & { artists: Pick<Artist, 'artist_name'> | null }) => ({
+        id: d.id,
+        artist_id: d.artist_id,
+        artist_name: d.artists?.artist_name ?? 'Unknown',
+        spotify_discovered_on: d.spotify_discovered_on,
+        spotify_similar_artists: d.spotify_similar_artists,
+        spotify_radio: d.spotify_radio,
+        tiktok_follow: d.tiktok_follow,
+        interact_3_posts: d.interact_3_posts,
+        soundcloud_radio: d.soundcloud_radio,
+      }))
+      .sort((a: Row, b: Row) => a.artist_name.localeCompare(b.artist_name))
+
     setRows(mapped)
     setLoading(false)
-  }, [])
+  }, [month])
 
   useEffect(() => { load() }, [load])
 
@@ -101,7 +124,7 @@ export default function OnboardingView() {
             {rows.length === 0 && (
               <tr>
                 <td colSpan={8} style={{ ...TD, color: '#aaa', padding: 32 }}>
-                  No artists yet. Add artists in the Pipeline view.
+                  No artists for this month. Add artists in the Pipeline view.
                 </td>
               </tr>
             )}

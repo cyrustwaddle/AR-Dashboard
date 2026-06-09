@@ -1,12 +1,14 @@
 import { useEffect, useState, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import type { Artist, ArtistWithGrowth, ArtistInsert, Stage } from '../lib/types'
-import {
-  computeGrowth, GENRE_LANES, SOURCES, PLAYLIST_PRESENCES, STAGES,
-} from '../lib/types'
+import { computeGrowth, SOURCES, PLAYLIST_PRESENCES, STAGES } from '../lib/types'
 import EditableCell from './EditableCell'
 import StagePill from './StagePill'
 import AddArtistModal from './AddArtistModal'
+
+interface Props {
+  month: string
+}
 
 function fmt(n: number | null, decimals = 0): string {
   if (n == null) return '—'
@@ -26,6 +28,11 @@ function LinkCell({ href }: { href: string | null }) {
     style={{ color: '#2563eb', wordBreak: 'break-all' }}>{label}</a>
 }
 
+function formatMonthLabel(m: string): string {
+  const [y, mo] = m.split('-').map(Number)
+  return new Date(y, mo - 1).toLocaleString('default', { month: 'long', year: 'numeric' })
+}
+
 const TH: React.CSSProperties = {
   position: 'sticky', top: 0, background: '#f8fafc',
   padding: '6px 8px', textAlign: 'left', fontSize: 11,
@@ -41,23 +48,41 @@ const SECTION_TH: React.CSSProperties = {
   borderTop: '1px solid #e2e8f0',
 }
 
-export default function PipelineView() {
+export default function PipelineView({ month }: Props) {
   const [artists, setArtists] = useState<ArtistWithGrowth[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [showModal, setShowModal] = useState(false)
   const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [prevMonthWithData, setPrevMonthWithData] = useState<string | null>(null)
+  const [copying, setCopying] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
     const { data, error } = await supabase
       .from('artists')
       .select('*')
+      .eq('month', month)
       .order('created_at', { ascending: false })
     if (error) { setError(error.message); setLoading(false); return }
-    setArtists((data ?? []).map(computeGrowth))
+
+    const rows = data ?? []
+    setArtists(rows.map(computeGrowth))
+
+    if (rows.length === 0) {
+      const { data: prev } = await supabase
+        .from('artists')
+        .select('month')
+        .lt('month', month)
+        .order('month', { ascending: false })
+        .limit(1)
+      setPrevMonthWithData(prev?.[0]?.month ?? null)
+    } else {
+      setPrevMonthWithData(null)
+    }
+
     setLoading(false)
-  }, [])
+  }, [month])
 
   useEffect(() => { load() }, [load])
 
@@ -68,7 +93,7 @@ export default function PipelineView() {
   }
 
   async function handleAdd(data: ArtistInsert) {
-    const { error } = await supabase.from('artists').insert(data)
+    const { error } = await supabase.from('artists').insert({ ...data, month })
     if (error) throw new Error(error.message)
     await load()
   }
@@ -82,13 +107,70 @@ export default function PipelineView() {
     setDeletingId(null)
   }
 
+  async function handleNewMonth() {
+    if (!prevMonthWithData) return
+    setCopying(true)
+    const { data: prevArtists, error: fetchErr } = await supabase
+      .from('artists')
+      .select('*')
+      .eq('month', prevMonthWithData)
+    if (fetchErr || !prevArtists) {
+      alert(`Failed to load previous month: ${fetchErr?.message}`)
+      setCopying(false)
+      return
+    }
+    const copies = (prevArtists as Artist[]).map(a => ({
+      artist_name: a.artist_name,
+      genre_lane: a.genre_lane,
+      location: a.location,
+      tiktok_url: a.tiktok_url,
+      spotify_url: a.spotify_url,
+      instagram_url: a.instagram_url,
+      source: a.source,
+      date_added: a.date_added,
+      stage: a.stage,
+      ben_sendable: a.ben_sendable,
+      last_contact: a.last_contact,
+      next_action: a.next_action,
+      next_action_date: a.next_action_date,
+      manager_team: a.manager_team,
+      notes: a.notes,
+      month,
+      tiktok_followers: null,
+      tiktok_followers_prev: null,
+      tiktok_avg_views: null,
+      tiktok_ugc_count: null,
+      spotify_monthly_listeners: null,
+      spotify_mls_prev: null,
+      spotify_top_track_streams: null,
+      spotify_playlist_presence: null,
+      instagram_followers: null,
+    }))
+    const { error: insertErr } = await supabase.from('artists').insert(copies)
+    if (insertErr) { alert(`Copy failed: ${insertErr.message}`); setCopying(false); return }
+    await load()
+    setCopying(false)
+  }
+
   if (loading) return <p style={{ padding: 24 }}>Loading…</p>
   if (error) return <p style={{ padding: 24, color: 'red' }}>Error: {error}</p>
 
   return (
     <div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '12px 16px', borderBottom: '1px solid #e2e8f0' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', borderBottom: '1px solid #e2e8f0' }}>
         <span style={{ fontWeight: 700, fontSize: 16 }}>Pipeline — {artists.length} artists</span>
+        {prevMonthWithData && (
+          <button
+            onClick={handleNewMonth}
+            disabled={copying}
+            style={{
+              padding: '6px 14px', background: '#f0fdf4', color: '#16a34a',
+              border: '1px solid #86efac', borderRadius: 4, cursor: 'pointer', fontWeight: 600, fontSize: 13,
+            }}
+          >
+            {copying ? 'Copying…' : `Copy roster from ${formatMonthLabel(prevMonthWithData)}`}
+          </button>
+        )}
         <button
           onClick={() => setShowModal(true)}
           style={{ marginLeft: 'auto', padding: '6px 16px', background: '#2563eb', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontWeight: 600 }}
@@ -101,15 +183,10 @@ export default function PipelineView() {
         <table style={{ borderCollapse: 'collapse', width: '100%', fontSize: 13 }}>
           <thead>
             <tr>
-              {/* IDENTITY */}
               <th style={SECTION_TH} colSpan={8}>Identity</th>
-              {/* TIKTOK */}
               <th style={{ ...SECTION_TH, background: '#fef9c3' }} colSpan={5}>TikTok</th>
-              {/* SPOTIFY */}
               <th style={{ ...SECTION_TH, background: '#dcfce7' }} colSpan={5}>Spotify</th>
-              {/* INSTAGRAM */}
               <th style={{ ...SECTION_TH, background: '#fce7f3' }} colSpan={1}>Instagram</th>
-              {/* PIPELINE */}
               <th style={{ ...SECTION_TH, background: '#ede9fe' }} colSpan={7}>Pipeline</th>
               <th style={SECTION_TH} />
             </tr>
@@ -151,7 +228,9 @@ export default function PipelineView() {
             {artists.length === 0 && (
               <tr>
                 <td colSpan={27} style={{ ...TD, textAlign: 'center', color: '#aaa', padding: 32 }}>
-                  No artists yet. Click "+ Add Artist" to get started.
+                  {prevMonthWithData
+                    ? 'No artists for this month — use "Copy roster" above to carry over the previous roster.'
+                    : 'No artists yet. Click "+ Add Artist" to get started.'}
                 </td>
               </tr>
             )}
@@ -163,7 +242,7 @@ export default function PipelineView() {
                     <EditableCell value={a.artist_name} onSave={upd('artist_name')} />
                   </td>
                   <td style={TD}>
-                    <EditableCell value={a.genre_lane} type="select" options={GENRE_LANES} onSave={upd('genre_lane')} />
+                    <EditableCell value={a.genre_lane} onSave={upd('genre_lane')} />
                   </td>
                   <td style={TD}>
                     <EditableCell value={a.location} onSave={upd('location')} />
@@ -187,7 +266,6 @@ export default function PipelineView() {
                     <EditableCell value={a.date_added} type="date" onSave={upd('date_added')} />
                   </td>
 
-                  {/* TikTok */}
                   <td style={TD}>
                     <EditableCell value={a.tiktok_followers} type="number" onSave={upd('tiktok_followers')}
                       render={v => fmt(v as number | null)} />
@@ -206,7 +284,6 @@ export default function PipelineView() {
                       render={v => fmt(v as number | null)} />
                   </td>
 
-                  {/* Spotify */}
                   <td style={TD}>
                     <EditableCell value={a.spotify_monthly_listeners} type="number" onSave={upd('spotify_monthly_listeners')}
                       render={v => fmt(v as number | null)} />
@@ -225,13 +302,11 @@ export default function PipelineView() {
                       onSave={upd('spotify_playlist_presence')} />
                   </td>
 
-                  {/* Instagram */}
                   <td style={TD}>
                     <EditableCell value={a.instagram_followers} type="number" onSave={upd('instagram_followers')}
                       render={v => fmt(v as number | null)} />
                   </td>
 
-                  {/* Pipeline */}
                   <td style={TD}>
                     <EditableCell value={a.stage} type="select" options={STAGES} onSave={upd('stage')}
                       render={v => <StagePill stage={v as Stage | null} />} />

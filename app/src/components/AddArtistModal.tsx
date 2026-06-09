@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
 import type { ArtistInsert } from '../lib/types'
-import { GENRE_LANES, SOURCES, PLAYLIST_PRESENCES, STAGES } from '../lib/types'
+import { SOURCES, PLAYLIST_PRESENCES, STAGES } from '../lib/types'
 
 interface Props {
   onClose: () => void
@@ -133,7 +133,7 @@ export default function AddArtistModal({ onClose, onSubmit }: Props) {
           <h4 style={{ margin: '0 0 8px', color: '#333' }}>Identity</h4>
           <div style={row}>
             <div style={col}><Field label="Artist Name *"><Txt field="artist_name" placeholder="Required" /></Field></div>
-            <div style={col}><Field label="Genre / Lane"><Sel field="genre_lane" opts={GENRE_LANES} /></Field></div>
+            <div style={col}><Field label="Genre / Lane"><Txt field="genre_lane" /></Field></div>
             <div style={col}><Field label="Location"><Txt field="location" /></Field></div>
           </div>
           <div style={row}>
