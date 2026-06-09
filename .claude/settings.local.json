@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python3 -)",
+      "Bash(pip3 install *)",
+      "Skill(update-config)",
+      "Skill(update-config:*)",
+      "Bash(npm create *)"
+    ]
+  }
+}
