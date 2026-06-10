@@ -21,14 +21,20 @@ function pct(n: number | null): React.ReactNode {
   return <span style={{ color, fontWeight: 600 }}>{n > 0 ? '+' : ''}{n.toFixed(1)}%</span>
 }
 
-function LinkCell({ href }: { href: string | null }) {
-  if (!href) return <span style={{ color: '#444444' }}>—</span>
-  const label = href.replace(/^https?:\/\/(www\.)?/, '').split('/')[0]
-  return <a href={href.startsWith('http') ? href : `https://${href}`} target="_blank" rel="noreferrer"
-    style={{ color: '#6B9EFF', wordBreak: 'break-all', textDecoration: 'none' }}
-    onMouseEnter={e => (e.currentTarget.style.textDecoration = 'underline')}
-    onMouseLeave={e => (e.currentTarget.style.textDecoration = 'none')}
-  >{label}</a>
+function LinkCell({ href, label }: { href: string | null; label: string }) {
+  if (!href) return null
+  return (
+    <a
+      href={href.startsWith('http') ? href : `https://${href}`}
+      target="_blank"
+      rel="noreferrer"
+      style={{ color: '#888888', fontSize: 11, letterSpacing: '0.04em', textDecoration: 'none', whiteSpace: 'nowrap' }}
+      onMouseEnter={e => (e.currentTarget.style.color = '#E0142A')}
+      onMouseLeave={e => (e.currentTarget.style.color = '#888888')}
+    >
+      {label}
+    </a>
+  )
 }
 
 function formatMonthLabel(m: string): string {
@@ -43,8 +49,8 @@ const TH: React.CSSProperties = {
   color: '#444444', borderBottom: '1px solid #2A2A2A', whiteSpace: 'nowrap', zIndex: 2,
 }
 const TD: React.CSSProperties = {
-  padding: '6px 12px', verticalAlign: 'middle', fontSize: 13,
-  borderBottom: '1px solid #1A1A1A', color: '#F0F0F0',
+  padding: '6px 12px', verticalAlign: 'middle', fontSize: 12,
+  borderBottom: '1px solid #1A1A1A', color: '#888888', whiteSpace: 'nowrap',
 }
 const SECTION_TH: React.CSSProperties = {
   position: 'sticky', top: 0, background: '#141414',
@@ -244,8 +250,8 @@ export default function PipelineView({ month }: Props) {
               const upd = (field: string) => (val: string | number | boolean | null) => updateField(a.id, field, val)
               const rowBg = deletingId === a.id ? '#1A0D0D' : undefined
               return (
-                <tr key={a.id} className="pipeline-row" style={{ background: rowBg }}>
-                  <td style={{ ...TD, fontWeight: 600 }}>
+                <tr key={a.id} className="pipeline-row" style={{ background: rowBg, height: 44 }}>
+                  <td style={{ ...TD, fontWeight: 600, fontSize: 13, color: '#F0F0F0' }}>
                     <EditableCell value={a.artist_name} onSave={upd('artist_name')} />
                   </td>
                   <td style={TD}>
@@ -256,15 +262,15 @@ export default function PipelineView({ month }: Props) {
                   </td>
                   <td style={TD}>
                     <EditableCell value={a.tiktok_url} onSave={upd('tiktok_url')}
-                      render={v => <LinkCell href={v as string | null} />} />
+                      render={v => <LinkCell href={v as string | null} label="TikTok" />} />
                   </td>
                   <td style={TD}>
                     <EditableCell value={a.spotify_url} onSave={upd('spotify_url')}
-                      render={v => <LinkCell href={v as string | null} />} />
+                      render={v => <LinkCell href={v as string | null} label="Spotify" />} />
                   </td>
                   <td style={TD}>
                     <EditableCell value={a.instagram_url} onSave={upd('instagram_url')}
-                      render={v => <LinkCell href={v as string | null} />} />
+                      render={v => <LinkCell href={v as string | null} label="IG" />} />
                   </td>
                   <td style={TD}>
                     <EditableCell value={a.source} type="select" options={SOURCES} onSave={upd('source')} />
@@ -321,8 +327,21 @@ export default function PipelineView({ month }: Props) {
                   <td style={TD}>
                     <EditableCell value={a.manager_team} onSave={upd('manager_team')} />
                   </td>
-                  <td style={{ ...TD, maxWidth: 200 }}>
-                    <EditableCell value={a.notes} onSave={upd('notes')} />
+                  <td style={TD}>
+                    <EditableCell value={a.notes} onSave={upd('notes')}
+                      render={v => (
+                        <span
+                          title={v ? String(v) : undefined}
+                          style={{
+                            display: 'block', maxWidth: 200, overflow: 'hidden',
+                            textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                            fontSize: 12, color: v ? '#888888' : '#444444',
+                          }}
+                        >
+                          {v || '—'}
+                        </span>
+                      )}
+                    />
                   </td>
                   <td style={{ ...TD, textAlign: 'center', padding: '6px 8px' }}>
                     <button
