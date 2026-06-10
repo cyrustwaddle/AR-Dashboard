@@ -18,10 +18,7 @@ interface PitchArtist {
 }
 
 interface SelectedArtist extends PitchArtist {
-  rawNotes: string
   polishedNotes: string | null
-  polishing: boolean
-  outdated: boolean
 }
 
 interface RevisionEntry {
@@ -48,11 +45,11 @@ function generateEmail(artists: SelectedArtist[]): string {
   const count = artists.length
   const blocks = artists.map((a, i) => {
     const linkParts = [
-      a.spotify_url ? `[SPOTIFY](${a.spotify_url})` : null,
-      a.tiktok_url ? `[TIKTOK](${a.tiktok_url})` : null,
-      a.instagram_url ? `[INSTAGRAM](${a.instagram_url})` : null,
+      a.spotify_url ? `SPOTIFY (${a.spotify_url})` : null,
+      a.tiktok_url ? `TIKTOK (${a.tiktok_url})` : null,
+      a.instagram_url ? `INSTAGRAM (${a.instagram_url})` : null,
     ].filter((x): x is string => x !== null)
-    const notes = (a.polishedNotes && !a.outdated) ? a.polishedNotes : (a.rawNotes || '—')
+    const notes = a.polishedNotes ?? '—'
     const lines = [
       `${i + 1}.) ${a.artist_name}`,
       `Genre: ${a.genre_lane || '—'}`,
@@ -90,48 +87,12 @@ async function callClaude(systemPrompt: string, userMessage: string, maxTokens: 
   return data.content[0].text
 }
 
-function extractNotesFromEmail(email: string, artistName: string, index: number): string {
-  const blockMarker = `${index + 1}.) ${artistName}`
-  const blockStart = email.indexOf(blockMarker)
-  if (blockStart === -1) return ''
-  const notesLabel = 'Notes: '
-  const notesIdx = email.indexOf(notesLabel, blockStart)
-  if (notesIdx === -1) return ''
-  const contentStart = notesIdx + notesLabel.length
-  const blockEnd = email.indexOf('\n\n', notesIdx)
-  return (blockEnd === -1 ? email.slice(contentStart) : email.slice(contentStart, blockEnd)).trim()
-}
-
-// ---------- Sub-components ----------
-
-function Pill({ href, label, color }: { href: string; label: string; color: string }) {
-  return (
-    <a
-      href={href.startsWith('http') ? href : `https://${href}`}
-      target="_blank" rel="noreferrer"
-      style={{
-        color, border: `1px solid ${color}4D`, background: 'transparent',
-        padding: '3px 10px', borderRadius: 2, fontSize: 11,
-        letterSpacing: '0.05em', textDecoration: 'none',
-        display: 'inline-block', whiteSpace: 'nowrap', fontWeight: 500,
-      }}
-      onMouseEnter={e => (e.currentTarget.style.filter = 'brightness(1.2)')}
-      onMouseLeave={e => (e.currentTarget.style.filter = '')}
-    >{label}</a>
-  )
-}
-
 // ---------- Shared styles ----------
 
 const SL: React.CSSProperties = {
   margin: '0 0 14px', fontSize: 10, fontWeight: 500,
   letterSpacing: '0.08em', textTransform: 'uppercase', color: '#444444',
   borderBottom: '1px solid #2A2A2A', paddingBottom: 8,
-}
-
-const FIELD_LABEL: React.CSSProperties = {
-  display: 'block', fontSize: 10, textTransform: 'uppercase',
-  letterSpacing: '0.06em', color: '#555555', marginBottom: 4,
 }
 
 // ---------- Main component ----------
@@ -146,12 +107,13 @@ export default function PitchGenerator() {
   const [emailDraft, setEmailDraft] = useState('')
   const [userEditedEmail, setUserEditedEmail] = useState(false)
   const [copied, setCopied] = useState(false)
-  const [confirmed, setConfirmed] = useState(false)
-  const [confirming, setConfirming] = useState(false)
+  const [generating, setGenerating] = useState(false)
 
   const [revisions, setRevisions] = useState<RevisionEntry[]>([])
   const [revisionInput, setRevisionInput] = useState('')
   const [revising, setRevising] = useState(false)
+  const [draftGenerated, setDraftGenerated] = useState(false)
+  const [draftOutdated, setDraftOutdated] = useState(false)
 
   // Load ben-sendable artists
   useEffect(() => {
@@ -178,37 +140,21 @@ export default function PitchGenerator() {
     return () => document.removeEventListener('mousedown', onMouseDown)
   }, [dropdownOpen])
 
-  // Auto-regenerate email when artists or their notes change
-  useEffect(() => {
-    if (!userEditedEmail) setEmailDraft(generateEmail(selectedArtists))
-  }, [selectedArtists, userEditedEmail])
-
   // ---- Handlers ----
 
   function addArtist(artist: PitchArtist) {
-    setSelectedArtists(prev => [
-      ...prev,
-      { ...artist, rawNotes: '', polishedNotes: null, polishing: false, outdated: false },
-    ])
+    setSelectedArtists(prev => [...prev, { ...artist, polishedNotes: null }])
+    if (draftGenerated) setDraftOutdated(true)
   }
 
   function removeArtist(id: string) {
     setSelectedArtists(prev => prev.filter(a => a.id !== id))
+    if (draftGenerated) setDraftOutdated(true)
   }
 
-  function updateRawNotes(id: string, rawNotes: string) {
-    setSelectedArtists(prev => prev.map(a =>
-      a.id === id
-        ? { ...a, rawNotes, outdated: a.polishedNotes != null }
-        : a
-    ))
-  }
-
-  async function polishNotes(artistId: string) {
-    const artist = selectedArtists.find(a => a.id === artistId)
-    if (!artist || !artist.rawNotes.trim()) return
-
-    setSelectedArtists(prev => prev.map(a => a.id === artistId ? { ...a, polishing: true } : a))
+  async function generateDraft() {
+    if (generating) return
+    setGenerating(true)
 
     try {
       const { data: exData } = await supabase
@@ -237,27 +183,38 @@ Rules:
         ).join('\n---\n')
       }
 
-      const context = [
-        artist.artist_name,
-        artist.genre_lane,
-        artist.spotify_monthly_listeners != null ? `${fmtNum(artist.spotify_monthly_listeners)} monthly listeners` : null,
-        artist.tiktok_followers != null ? `${fmtNum(artist.tiktok_followers)} TikTok followers` : null,
-        artist.tiktok_avg_views != null ? `${fmtNum(artist.tiktok_avg_views)} avg TikTok views` : null,
-        artist.stage,
-      ].filter(Boolean).join(', ')
+      const polishedArtists = await Promise.all(
+        selectedArtists.map(async (a) => {
+          const rawNotes = a.notes?.trim()
+          if (!rawNotes) return { ...a, polishedNotes: null }
 
-      const polished = await callClaude(
-        system,
-        `Raw notes: ${artist.rawNotes}\nArtist context: ${context}`,
-        1000,
+          const context = [
+            a.artist_name,
+            a.genre_lane,
+            a.spotify_monthly_listeners != null ? `${fmtNum(a.spotify_monthly_listeners)} monthly listeners` : null,
+            a.tiktok_followers != null ? `${fmtNum(a.tiktok_followers)} TikTok followers` : null,
+            a.tiktok_avg_views != null ? `${fmtNum(a.tiktok_avg_views)} avg TikTok views` : null,
+            a.stage,
+          ].filter(Boolean).join(', ')
+
+          const polished = await callClaude(
+            system,
+            `Raw notes: ${rawNotes}\nArtist context: ${context}`,
+            1000,
+          )
+          return { ...a, polishedNotes: polished }
+        })
       )
 
-      setSelectedArtists(prev => prev.map(a =>
-        a.id === artistId ? { ...a, polishedNotes: polished, polishing: false, outdated: false } : a
-      ))
+      setSelectedArtists(polishedArtists)
+      setEmailDraft(generateEmail(polishedArtists))
+      setDraftGenerated(true)
+      setDraftOutdated(false)
+      setUserEditedEmail(false)
     } catch (err) {
-      alert(`Polish failed: ${err instanceof Error ? err.message : 'Unknown error'}`)
-      setSelectedArtists(prev => prev.map(a => a.id === artistId ? { ...a, polishing: false } : a))
+      alert(`Generation failed: ${err instanceof Error ? err.message : 'Unknown error'}`)
+    } finally {
+      setGenerating(false)
     }
   }
 
@@ -299,7 +256,7 @@ Best,
       spotify_monthly_listeners: a.spotify_monthly_listeners,
       tiktok_followers: a.tiktok_followers,
       tiktok_avg_views: a.tiktok_avg_views,
-      polished_notes: (a.polishedNotes && !a.outdated) ? a.polishedNotes : null,
+      polished_notes: a.polishedNotes,
     }))
 
     const userMsg = `Current draft:\n${emailDraft}\n\nRevision instruction: ${revisionInput}\n\nAll artist data:\n${JSON.stringify(artistData, null, 2)}`
@@ -317,29 +274,7 @@ Best,
     }
   }
 
-  async function handleConfirm() {
-    if (confirming || selectedArtists.length === 0) return
-    setConfirming(true)
-    try {
-      const rows = selectedArtists.map((a, i) => ({
-        artist_id: a.id,
-        artist_name: a.artist_name,
-        raw_notes: a.rawNotes || null,
-        confirmed_notes: extractNotesFromEmail(emailDraft, a.artist_name, i) || null,
-      }))
-      const { error } = await supabase.from('confirmed_pitches').insert(rows)
-      if (error) throw new Error(error.message)
-      setConfirmed(true)
-      setTimeout(() => setConfirmed(false), 2000)
-    } catch (err) {
-      alert(`Confirm failed: ${err instanceof Error ? err.message : 'Unknown error'}`)
-    } finally {
-      setConfirming(false)
-    }
-  }
-
   const availableArtists = allArtists.filter(a => !selectedArtists.some(s => s.id === a.id))
-  const hasPolished = selectedArtists.some(a => a.polishedNotes !== null)
 
   return (
     <div style={{ padding: '20px 24px', maxWidth: 800 }}>
@@ -436,129 +371,27 @@ Best,
         )}
       </div>
 
-      {/* ── Section 2: Per-artist note cards ── */}
-      {selectedArtists.length > 0 && (
+      {/* ── Section 2: Generate draft button ── */}
+      {selectedArtists.length > 0 && !draftGenerated && (
         <div style={{ marginBottom: 28 }}>
-          <div style={SL}>Notes</div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            {selectedArtists.map(a => (
-              <div
-                key={a.id}
-                style={{
-                  background: '#1C1C1C', border: '1px solid #2A2A2A',
-                  borderRadius: 4, padding: 16,
-                }}
-              >
-                {/* Card header */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 8 }}>
-                  <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-                    <span style={{ fontSize: 14, fontWeight: 600, color: '#F0F0F0' }}>{a.artist_name}</span>
-                    {a.genre_lane && <span style={{ fontSize: 12, color: '#666666' }}>{a.genre_lane}</span>}
-                  </div>
-                  <span
-                    onClick={() => removeArtist(a.id)}
-                    style={{ color: '#444444', cursor: 'pointer', fontSize: 16, lineHeight: 1, flexShrink: 0 }}
-                    onMouseEnter={e => (e.currentTarget.style.color = '#E0142A')}
-                    onMouseLeave={e => (e.currentTarget.style.color = '#444444')}
-                  >×</span>
-                </div>
-
-                {/* Metrics */}
-                {(a.spotify_monthly_listeners != null || a.tiktok_followers != null || a.tiktok_avg_views != null) && (
-                  <div style={{ display: 'flex', gap: 16, marginBottom: 10, flexWrap: 'wrap' }}>
-                    {a.spotify_monthly_listeners != null && (
-                      <span style={{ fontSize: 12, color: '#AAAAAA' }}>
-                        <span style={{ color: '#555555', fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Spotify </span>
-                        {fmtNum(a.spotify_monthly_listeners)}
-                      </span>
-                    )}
-                    {a.tiktok_followers != null && (
-                      <span style={{ fontSize: 12, color: '#AAAAAA' }}>
-                        <span style={{ color: '#555555', fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.04em' }}>TikTok </span>
-                        {fmtNum(a.tiktok_followers)}
-                      </span>
-                    )}
-                    {a.tiktok_avg_views != null && (
-                      <span style={{ fontSize: 12, color: '#AAAAAA' }}>
-                        <span style={{ color: '#555555', fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Avg Views </span>
-                        {fmtNum(a.tiktok_avg_views)}
-                      </span>
-                    )}
-                  </div>
-                )}
-
-                {/* Platform pills */}
-                {(a.spotify_url || a.tiktok_url || a.instagram_url) && (
-                  <div style={{ display: 'flex', gap: 6, marginBottom: 14, flexWrap: 'wrap' }}>
-                    {a.spotify_url && <Pill href={a.spotify_url} label="SPOTIFY" color="#1DB954" />}
-                    {a.tiktok_url && <Pill href={a.tiktok_url} label="TIKTOK" color="#69C9D0" />}
-                    {a.instagram_url && <Pill href={a.instagram_url} label="INSTAGRAM" color="#E1306C" />}
-                  </div>
-                )}
-
-                {/* Raw notes textarea */}
-                <div>
-                  <label style={FIELD_LABEL}>Raw Notes</label>
-                  <textarea
-                    value={a.rawNotes}
-                    placeholder="Paste your scouting notes here…"
-                    onChange={e => updateRawNotes(a.id, e.target.value)}
-                    rows={4}
-                    style={{ width: '100%', boxSizing: 'border-box', resize: 'vertical', fontFamily: 'Inter, sans-serif', fontSize: 12, lineHeight: 1.55 }}
-                  />
-                </div>
-
-                {/* Polish button */}
-                <div style={{ marginTop: 8 }}>
-                  <button
-                    className="btn-ghost"
-                    onClick={() => polishNotes(a.id)}
-                    disabled={!a.rawNotes.trim() || a.polishing}
-                    style={{ opacity: (!a.rawNotes.trim() || a.polishing) ? 0.4 : 1 }}
-                  >
-                    {a.polishing ? 'Polishing…' : (a.outdated ? 'Re-polish →' : 'Polish →')}
-                  </button>
-                </div>
-
-                {/* Polished output */}
-                {a.polishedNotes && (
-                  <div style={{ marginTop: 14 }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-                      <label style={FIELD_LABEL}>Polished</label>
-                      {a.outdated && (
-                        <span style={{ fontSize: 10, color: '#555555', letterSpacing: '0.02em' }}>
-                          Outdated — re-polish to update
-                        </span>
-                      )}
-                    </div>
-                    <div
-                      style={{
-                        background: '#141414', border: '1px solid #222222',
-                        borderRadius: 3, padding: '10px 12px',
-                        fontSize: 12, color: '#AAAAAA', lineHeight: 1.6,
-                        whiteSpace: 'pre-wrap',
-                        opacity: a.outdated ? 0.5 : 1,
-                        transition: 'opacity 0.15s',
-                      }}
-                    >
-                      {a.polishedNotes}
-                    </div>
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
+          <button
+            className="btn-primary"
+            onClick={generateDraft}
+            disabled={generating}
+          >
+            {generating ? 'Generating…' : 'Generate draft'}
+          </button>
         </div>
       )}
 
       {/* ── Section 3: Email preview ── */}
-      {selectedArtists.length > 0 && (
+      {draftGenerated && (
         <div style={{ marginBottom: 28 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', ...SL }}>
             <span>Draft</span>
             {userEditedEmail && (
               <span
-                onClick={() => { setUserEditedEmail(false); setEmailDraft(generateEmail(selectedArtists)) }}
+                onClick={() => { setUserEditedEmail(false); setDraftOutdated(false); setEmailDraft(generateEmail(selectedArtists)) }}
                 style={{ fontSize: 11, color: '#666666', cursor: 'pointer', letterSpacing: '0.02em', fontWeight: 400, textTransform: 'none' }}
                 onMouseEnter={e => (e.currentTarget.style.color = '#AAAAAA')}
                 onMouseLeave={e => (e.currentTarget.style.color = '#666666')}
@@ -567,6 +400,17 @@ Best,
               </span>
             )}
           </div>
+          {draftOutdated && (
+            <div style={{ marginBottom: 10, fontSize: 12, color: '#666666' }}>
+              Your selection has changed —{' '}
+              <span
+                onClick={generateDraft}
+                style={{ color: '#AAAAAA', cursor: 'pointer', textDecoration: 'underline' }}
+                onMouseEnter={e => (e.currentTarget.style.color = '#F0F0F0')}
+                onMouseLeave={e => (e.currentTarget.style.color = '#AAAAAA')}
+              >regenerate to update</span>
+            </div>
+          )}
           <textarea
             value={emailDraft}
             onChange={e => { setEmailDraft(e.target.value); setUserEditedEmail(true) }}
@@ -576,30 +420,23 @@ Best,
               fontFamily: 'Inter, sans-serif', fontSize: 12, lineHeight: 1.65,
             }}
           />
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 8 }}>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8 }}>
             <button
               className="btn-ghost"
-              onClick={async () => {
-                await navigator.clipboard.writeText(emailDraft)
+              onClick={() => {
+                navigator.clipboard.writeText(emailDraft)
                 setCopied(true)
                 setTimeout(() => setCopied(false), 2000)
               }}
             >
               {copied ? '✓ Copied' : 'Copy email'}
             </button>
-            <button
-              className="btn-primary"
-              onClick={handleConfirm}
-              disabled={confirming}
-            >
-              {confirmed ? '✓ Confirmed' : confirming ? 'Saving…' : 'Confirm'}
-            </button>
           </div>
         </div>
       )}
 
       {/* ── Section 4: Revision chat ── */}
-      {hasPolished && (
+      {draftGenerated && (
         <div>
           <div style={SL}>Revise the Draft</div>
 
