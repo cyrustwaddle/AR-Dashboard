@@ -16,8 +16,8 @@ function fmt(n: number | null, decimals = 0): string {
 }
 
 function pct(n: number | null): React.ReactNode {
-  if (n == null) return <span style={{ color: '#444444' }}>—</span>
-  const color = n > 0 ? '#4CAF50' : n < 0 ? '#E0142A' : '#444444'
+  if (n == null) return <span style={{ color: '#666666' }}>—</span>
+  const color = n > 0 ? '#4CAF50' : n < 0 ? '#E0142A' : '#666666'
   return <span style={{ color, fontWeight: 600 }}>{n > 0 ? '+' : ''}{n.toFixed(1)}%</span>
 }
 
@@ -46,11 +46,11 @@ const TH: React.CSSProperties = {
   position: 'sticky', top: 0, background: '#141414',
   padding: '10px 12px', textAlign: 'left', fontSize: 11,
   fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.06em',
-  color: '#444444', borderBottom: '1px solid #2A2A2A', whiteSpace: 'nowrap', zIndex: 2,
+  color: '#555555', borderBottom: '1px solid #2A2A2A', whiteSpace: 'nowrap', zIndex: 2,
 }
 const TD: React.CSSProperties = {
-  padding: '6px 12px', verticalAlign: 'middle', fontSize: 12,
-  borderBottom: '1px solid #1A1A1A', color: '#888888', whiteSpace: 'nowrap',
+  padding: '14px 12px', verticalAlign: 'middle', fontSize: 13,
+  borderBottom: '1px solid #1A1A1A', color: '#AAAAAA', whiteSpace: 'nowrap',
 }
 const SECTION_TH: React.CSSProperties = {
   position: 'sticky', top: 0, background: '#141414',
@@ -250,8 +250,8 @@ export default function PipelineView({ month }: Props) {
               const upd = (field: string) => (val: string | number | boolean | null) => updateField(a.id, field, val)
               const rowBg = deletingId === a.id ? '#1A0D0D' : undefined
               return (
-                <tr key={a.id} className="pipeline-row" style={{ background: rowBg, height: 44 }}>
-                  <td style={{ ...TD, fontWeight: 600, fontSize: 13, color: '#F0F0F0' }}>
+                <tr key={a.id} className="pipeline-row" style={{ background: rowBg, height: 56 }}>
+                  <td style={{ ...TD, fontWeight: 600, fontSize: 14, color: '#FFFFFF' }}>
                     <EditableCell value={a.artist_name} onSave={upd('artist_name')} />
                   </td>
                   <td style={TD}>
@@ -327,15 +327,15 @@ export default function PipelineView({ month }: Props) {
                   <td style={TD}>
                     <EditableCell value={a.manager_team} onSave={upd('manager_team')} />
                   </td>
-                  <td style={TD}>
+                  <td style={{ ...TD, minWidth: 180 }}>
                     <EditableCell value={a.notes} onSave={upd('notes')}
                       render={v => (
                         <span
                           title={v ? String(v) : undefined}
                           style={{
-                            display: 'block', maxWidth: 200, overflow: 'hidden',
+                            display: 'block', maxWidth: 240, overflow: 'hidden',
                             textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                            fontSize: 12, color: v ? '#888888' : '#444444',
+                            fontSize: 13, color: v ? '#AAAAAA' : '#555555',
                           }}
                         >
                           {v || '—'}
