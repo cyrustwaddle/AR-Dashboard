@@ -157,7 +157,7 @@ Rules:
 - 3-5 sentences max
 - Only include what Ben cares about: deal situation, competition, trajectory, engagement signals, Harold flag if present
 - No fluff, no hype, no adjectives that don't carry information
-- If Harold is mentioned, keep it factual: "Harold and I have spoken with him/her on the label side — he isn't moving on it."
+- If Harold is mentioned, keep it factual: "Harold and I have spoken with him/her on the label side. He isn't moving on it."
 - Tone: direct, peer-to-peer, no overselling
 - Never start with the artist name
 - Never use em dashes (—). Use a comma, period, or rewrite the sentence instead.
@@ -182,7 +182,7 @@ Rules:
             `Raw notes: ${rawNotes}\nArtist context: ${context}`,
             1000,
           )
-          return { ...a, polishedNotes: polished }
+          return { ...a, polishedNotes: polished.replace(/ — /g, ', ').replace(/—/g, ',') }
         })
       )
 
@@ -219,7 +219,7 @@ Hey Ben,
 Genre: House/Kettema adjacent
 Monthly: 345K
 Links: [SPOTIFY](https://open.spotify.com/artist/0dlNkho2CWhX2Cs2lmER6L) | [TIKTOK](https://www.tiktok.com/@southbound.iou) | [INSTAGRAM](https://www.instagram.com/southbound.iou/)
-Notes: All 3 songs performed well on minimal spend. The deal was inked before he had any motion and they only put ~$2-3K into marketing via him. One song left on his AAO deal, shopping for future music. Given his deal terms were set pre-traction, we could potentially get in for cheap. No manager. Wants to start performing live. Strong TikTok engagement across posts. Harold and I have both spoken with him a few times on the label side — he isn't moving on it.
+Notes: All 3 songs performed well on minimal spend. The deal was inked before he had any motion and they only put ~$2-3K into marketing via him. One song left on his AAO deal, shopping for future music. Given his deal terms were set pre-traction, we could potentially get in for cheap. No manager. Wants to start performing live. Strong TikTok engagement across posts. Harold and I have both spoken with him a few times on the label side. He isn't moving on it.
 
 2.) Zizii
 Genre: DMV/Bktherula adjacent
