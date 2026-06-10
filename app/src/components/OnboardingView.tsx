@@ -19,17 +19,6 @@ const CHECKBOX_FIELDS: Array<{ key: keyof Omit<Onboarding, 'id' | 'artist_id'>; 
   { key: 'soundcloud_radio', label: 'SoundCloud Radio' },
 ]
 
-const TH: React.CSSProperties = {
-  position: 'sticky', top: 0, background: '#f8fafc',
-  padding: '6px 12px', textAlign: 'left', fontSize: 11,
-  fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.04em',
-  color: '#64748b', borderBottom: '2px solid #e2e8f0', whiteSpace: 'nowrap', zIndex: 2,
-}
-const TD: React.CSSProperties = {
-  padding: '6px 12px', verticalAlign: 'middle', fontSize: 13,
-  borderBottom: '1px solid #f1f5f9', textAlign: 'center',
-}
-
 function isFullyOnboarded(row: Row): boolean {
   return CHECKBOX_FIELDS.every(f => row[f.key])
 }
@@ -42,7 +31,6 @@ export default function OnboardingView({ month }: Props) {
   const load = useCallback(async () => {
     setLoading(true)
 
-    // Get artist IDs for this month first
     const { data: monthArtists, error: artistsErr } = await supabase
       .from('artists')
       .select('id')
@@ -95,71 +83,103 @@ export default function OnboardingView({ month }: Props) {
     setRows(prev => prev.map(r => r.id === row.id ? { ...r, [field]: newVal } : r))
   }
 
-  if (loading) return <p style={{ padding: 24 }}>Loading…</p>
-  if (error) return <p style={{ padding: 24, color: 'red' }}>Error: {error}</p>
+  if (loading) return <p style={{ padding: 24, color: '#444444' }}>Loading…</p>
+  if (error) return <p style={{ padding: 24, color: '#E0142A' }}>Error: {error}</p>
+
+  const onboardedCount = rows.filter(isFullyOnboarded).length
 
   return (
-    <div>
-      <div style={{ padding: '12px 16px', borderBottom: '1px solid #e2e8f0' }}>
-        <span style={{ fontWeight: 700, fontSize: 16 }}>
-          Onboarding Checklist — {rows.length} artists
+    <div style={{ padding: '20px' }}>
+      <div style={{ marginBottom: 20, display: 'flex', alignItems: 'baseline', gap: 12 }}>
+        <span style={{ fontWeight: 500, fontSize: 12, letterSpacing: '0.06em', textTransform: 'uppercase', color: '#444444' }}>
+          {rows.length} <span style={{ color: '#2A2A2A' }}>artists</span>
         </span>
-        <span style={{ marginLeft: 12, fontSize: 13, color: '#6b7280' }}>
-          ({rows.filter(isFullyOnboarded).length} fully onboarded)
-        </span>
+        {rows.length > 0 && (
+          <span style={{ fontSize: 11, color: '#333333', letterSpacing: '0.04em' }}>
+            {onboardedCount}/{rows.length} fully onboarded
+          </span>
+        )}
       </div>
 
-      <div style={{ overflowX: 'auto' }}>
-        <table style={{ borderCollapse: 'collapse', width: '100%' }}>
-          <thead>
-            <tr>
-              <th style={{ ...TH, textAlign: 'left' }}>Artist Name</th>
-              {CHECKBOX_FIELDS.map(f => (
-                <th key={f.key} style={TH}>{f.label}</th>
-              ))}
-              <th style={TH}>Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.length === 0 && (
-              <tr>
-                <td colSpan={8} style={{ ...TD, color: '#aaa', padding: 32 }}>
-                  No artists for this month. Add artists in the Pipeline view.
-                </td>
-              </tr>
-            )}
-            {rows.map(row => {
-              const done = isFullyOnboarded(row)
-              return (
-                <tr key={row.id} style={{ background: done ? '#f0fdf4' : undefined }}>
-                  <td style={{ ...TD, textAlign: 'left', fontWeight: 600 }}>{row.artist_name}</td>
-                  {CHECKBOX_FIELDS.map(f => (
-                    <td key={f.key} style={TD}>
-                      <input
-                        type="checkbox"
-                        checked={row[f.key]}
-                        onChange={() => toggle(row, f.key)}
-                        style={{ cursor: 'pointer', width: 16, height: 16 }}
-                      />
-                    </td>
-                  ))}
-                  <td style={TD}>
-                    {done
-                      ? <span style={{
-                          background: '#22c55e', color: '#fff', borderRadius: 12,
-                          padding: '2px 10px', fontSize: 12, fontWeight: 600,
-                        }}>Onboarded ✓</span>
-                      : <span style={{ color: '#9ca3af', fontSize: 12 }}>
-                          {CHECKBOX_FIELDS.filter(f => row[f.key]).length}/{CHECKBOX_FIELDS.length}
+      {rows.length === 0 ? (
+        <p style={{ color: '#444444', fontSize: 13 }}>No artists for this month. Add artists in the Pipeline view.</p>
+      ) : (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 12 }}>
+          {rows.map(row => {
+            const done = isFullyOnboarded(row)
+            const checkedCount = CHECKBOX_FIELDS.filter(f => row[f.key]).length
+            const progress = checkedCount / CHECKBOX_FIELDS.length
+
+            return (
+              <div
+                key={row.id}
+                style={{
+                  background: '#111111',
+                  border: `1px solid ${done ? '#2A1A1A' : '#1E1E1E'}`,
+                  borderRadius: 4,
+                  padding: 16,
+                  transition: 'border-color 0.15s',
+                }}
+                onMouseEnter={e => { if (!done) (e.currentTarget as HTMLDivElement).style.borderColor = '#2A2A2A' }}
+                onMouseLeave={e => { if (!done) (e.currentTarget as HTMLDivElement).style.borderColor = '#1E1E1E' }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+                  <span style={{ fontSize: 14, fontWeight: 600, color: '#F0F0F0' }}>{row.artist_name}</span>
+                  {done && (
+                    <span style={{
+                      background: '#1A0D0D', color: '#E0142A',
+                      fontSize: 11, letterSpacing: '0.04em',
+                      padding: '2px 8px', borderRadius: 2,
+                      border: '1px solid #3A1A1A', fontWeight: 500,
+                    }}>
+                      Onboarded ✓
+                    </span>
+                  )}
+                </div>
+
+                <div style={{ fontSize: 11, color: '#444444', marginBottom: 8 }}>
+                  {checkedCount} / {CHECKBOX_FIELDS.length} complete
+                </div>
+
+                <div style={{ width: '100%', height: 2, background: '#1E1E1E', borderRadius: 1, marginBottom: 12 }}>
+                  <div style={{ width: `${progress * 100}%`, height: 2, background: '#E0142A', borderRadius: 1, transition: 'width 0.2s ease' }} />
+                </div>
+
+                <div>
+                  {CHECKBOX_FIELDS.map((f, i) => {
+                    const checked = row[f.key]
+                    return (
+                      <label
+                        key={f.key}
+                        style={{
+                          display: 'flex', alignItems: 'center', gap: 8,
+                          padding: '5px 0',
+                          borderBottom: i < CHECKBOX_FIELDS.length - 1 ? '1px solid #0F0F0F' : 'none',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        <input
+                          type="checkbox"
+                          className="onboarding-check"
+                          checked={checked}
+                          onChange={() => toggle(row, f.key)}
+                        />
+                        <span style={{
+                          fontSize: 12,
+                          color: checked ? '#444444' : '#888888',
+                          textDecoration: checked ? 'line-through' : 'none',
+                        }}>
+                          {f.label}
                         </span>
-                    }
-                  </td>
-                </tr>
-              )
-            })}
-          </tbody>
-        </table>
-      </div>
+                      </label>
+                    )
+                  })}
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
     </div>
   )
 }

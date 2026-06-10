@@ -16,16 +16,19 @@ function fmt(n: number | null, decimals = 0): string {
 }
 
 function pct(n: number | null): React.ReactNode {
-  if (n == null) return <span style={{ color: '#aaa' }}>—</span>
-  const color = n > 0 ? '#16a34a' : n < 0 ? '#dc2626' : '#6b7280'
+  if (n == null) return <span style={{ color: '#444444' }}>—</span>
+  const color = n > 0 ? '#4CAF50' : n < 0 ? '#E0142A' : '#444444'
   return <span style={{ color, fontWeight: 600 }}>{n > 0 ? '+' : ''}{n.toFixed(1)}%</span>
 }
 
 function LinkCell({ href }: { href: string | null }) {
-  if (!href) return <span style={{ color: '#aaa' }}>—</span>
+  if (!href) return <span style={{ color: '#444444' }}>—</span>
   const label = href.replace(/^https?:\/\/(www\.)?/, '').split('/')[0]
   return <a href={href.startsWith('http') ? href : `https://${href}`} target="_blank" rel="noreferrer"
-    style={{ color: '#2563eb', wordBreak: 'break-all' }}>{label}</a>
+    style={{ color: '#6B9EFF', wordBreak: 'break-all', textDecoration: 'none' }}
+    onMouseEnter={e => (e.currentTarget.style.textDecoration = 'underline')}
+    onMouseLeave={e => (e.currentTarget.style.textDecoration = 'none')}
+  >{label}</a>
 }
 
 function formatMonthLabel(m: string): string {
@@ -34,18 +37,20 @@ function formatMonthLabel(m: string): string {
 }
 
 const TH: React.CSSProperties = {
-  position: 'sticky', top: 0, background: '#f8fafc',
-  padding: '6px 8px', textAlign: 'left', fontSize: 11,
-  fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.04em',
-  color: '#64748b', borderBottom: '2px solid #e2e8f0', whiteSpace: 'nowrap', zIndex: 2,
+  position: 'sticky', top: 0, background: '#0A0A0A',
+  padding: '10px 12px', textAlign: 'left', fontSize: 11,
+  fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.06em',
+  color: '#444444', borderBottom: '1px solid #1E1E1E', whiteSpace: 'nowrap', zIndex: 2,
 }
 const TD: React.CSSProperties = {
-  padding: '5px 8px', verticalAlign: 'middle', fontSize: 13,
-  borderBottom: '1px solid #f1f5f9',
+  padding: '6px 12px', verticalAlign: 'middle', fontSize: 13,
+  borderBottom: '1px solid #0F0F0F', color: '#F0F0F0',
 }
 const SECTION_TH: React.CSSProperties = {
-  ...TH, background: '#f1f5f9', color: '#94a3b8', textAlign: 'center',
-  borderTop: '1px solid #e2e8f0',
+  position: 'sticky', top: 0, background: '#0A0A0A',
+  padding: '4px 12px', textAlign: 'center', fontSize: 10,
+  fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.08em',
+  color: '#2A2A2A', borderBottom: '1px solid #1E1E1E', whiteSpace: 'nowrap', zIndex: 2,
 }
 
 export default function PipelineView({ month }: Props) {
@@ -152,42 +157,46 @@ export default function PipelineView({ month }: Props) {
     setCopying(false)
   }
 
-  if (loading) return <p style={{ padding: 24 }}>Loading…</p>
-  if (error) return <p style={{ padding: 24, color: 'red' }}>Error: {error}</p>
+  if (loading) return <p style={{ padding: 24, color: '#444444' }}>Loading…</p>
+  if (error) return <p style={{ padding: 24, color: '#E0142A' }}>Error: {error}</p>
 
   return (
     <div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', borderBottom: '1px solid #e2e8f0' }}>
-        <span style={{ fontWeight: 700, fontSize: 16 }}>Pipeline — {artists.length} artists</span>
+      {/* Toolbar */}
+      <div style={{
+        display: 'flex', alignItems: 'center', gap: 12,
+        padding: '10px 20px', borderBottom: '1px solid #1E1E1E',
+      }}>
+        <span style={{ fontWeight: 500, fontSize: 12, letterSpacing: '0.06em', textTransform: 'uppercase', color: '#444444' }}>
+          {artists.length} <span style={{ color: '#2A2A2A' }}>artists</span>
+        </span>
         {prevMonthWithData && (
           <button
+            className="btn-ghost"
             onClick={handleNewMonth}
             disabled={copying}
-            style={{
-              padding: '6px 14px', background: '#f0fdf4', color: '#16a34a',
-              border: '1px solid #86efac', borderRadius: 4, cursor: 'pointer', fontWeight: 600, fontSize: 13,
-            }}
           >
             {copying ? 'Copying…' : `Copy roster from ${formatMonthLabel(prevMonthWithData)}`}
           </button>
         )}
         <button
+          className="btn-primary"
           onClick={() => setShowModal(true)}
-          style={{ marginLeft: 'auto', padding: '6px 16px', background: '#2563eb', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontWeight: 600 }}
+          style={{ marginLeft: 'auto' }}
         >
           + Add Artist
         </button>
       </div>
 
-      <div style={{ overflowX: 'auto' }}>
+      <div style={{ overflowX: 'auto', borderTop: '1px solid #1E1E1E' }}>
         <table style={{ borderCollapse: 'collapse', width: '100%', fontSize: 13 }}>
           <thead>
             <tr>
               <th style={SECTION_TH} colSpan={8}>Identity</th>
-              <th style={{ ...SECTION_TH, background: '#fef9c3' }} colSpan={5}>TikTok</th>
-              <th style={{ ...SECTION_TH, background: '#dcfce7' }} colSpan={5}>Spotify</th>
-              <th style={{ ...SECTION_TH, background: '#fce7f3' }} colSpan={1}>Instagram</th>
-              <th style={{ ...SECTION_TH, background: '#ede9fe' }} colSpan={7}>Pipeline</th>
+              <th style={SECTION_TH} colSpan={5}>TikTok</th>
+              <th style={SECTION_TH} colSpan={5}>Spotify</th>
+              <th style={SECTION_TH} colSpan={1}>Instagram</th>
+              <th style={SECTION_TH} colSpan={7}>Pipeline</th>
               <th style={SECTION_TH} />
             </tr>
             <tr>
@@ -200,34 +209,34 @@ export default function PipelineView({ month }: Props) {
               <th style={TH}>Source</th>
               <th style={TH}>Date Added</th>
 
-              <th style={{ ...TH, background: '#fef9c3' }}>Followers</th>
-              <th style={{ ...TH, background: '#fef9c3' }}>Prev Wk</th>
-              <th style={{ ...TH, background: '#fef9c3' }}>7d Growth</th>
-              <th style={{ ...TH, background: '#fef9c3' }}>Avg Views</th>
-              <th style={{ ...TH, background: '#fef9c3' }}>UGC</th>
+              <th style={{ ...TH, borderLeft: '1px solid #1E1E1E' }}>Followers</th>
+              <th style={TH}>Prev Wk</th>
+              <th style={TH}>7d Growth</th>
+              <th style={TH}>Avg Views</th>
+              <th style={TH}>UGC</th>
 
-              <th style={{ ...TH, background: '#dcfce7' }}>Monthly Listeners</th>
-              <th style={{ ...TH, background: '#dcfce7' }}>Prev Wk</th>
-              <th style={{ ...TH, background: '#dcfce7' }}>7d Growth</th>
-              <th style={{ ...TH, background: '#dcfce7' }}>Top Streams</th>
-              <th style={{ ...TH, background: '#dcfce7' }}>Playlist</th>
+              <th style={{ ...TH, borderLeft: '1px solid #1E1E1E' }}>Monthly Listeners</th>
+              <th style={TH}>Prev Wk</th>
+              <th style={TH}>7d Growth</th>
+              <th style={TH}>Top Streams</th>
+              <th style={TH}>Playlist</th>
 
-              <th style={{ ...TH, background: '#fce7f3' }}>Followers</th>
+              <th style={{ ...TH, borderLeft: '1px solid #1E1E1E' }}>Followers</th>
 
-              <th style={{ ...TH, background: '#ede9fe' }}>Stage</th>
-              <th style={{ ...TH, background: '#ede9fe' }}>Ben?</th>
-              <th style={{ ...TH, background: '#ede9fe' }}>Last Contact</th>
-              <th style={{ ...TH, background: '#ede9fe' }}>Next Action</th>
-              <th style={{ ...TH, background: '#ede9fe' }}>Next Action Date</th>
-              <th style={{ ...TH, background: '#ede9fe' }}>Manager/Team</th>
-              <th style={{ ...TH, background: '#ede9fe' }}>Notes</th>
+              <th style={{ ...TH, borderLeft: '1px solid #1E1E1E' }}>Stage</th>
+              <th style={{ ...TH, textAlign: 'center' }}>Ben?</th>
+              <th style={TH}>Last Contact</th>
+              <th style={TH}>Next Action</th>
+              <th style={TH}>Next Action Date</th>
+              <th style={TH}>Manager/Team</th>
+              <th style={TH}>Notes</th>
               <th style={TH} />
             </tr>
           </thead>
           <tbody>
             {artists.length === 0 && (
               <tr>
-                <td colSpan={27} style={{ ...TD, textAlign: 'center', color: '#aaa', padding: 32 }}>
+                <td colSpan={27} style={{ ...TD, textAlign: 'center', color: '#444444', padding: 40 }}>
                   {prevMonthWithData
                     ? 'No artists for this month — use "Copy roster" above to carry over the previous roster.'
                     : 'No artists yet. Click "+ Add Artist" to get started.'}
@@ -236,8 +245,9 @@ export default function PipelineView({ month }: Props) {
             )}
             {artists.map(a => {
               const upd = (field: string) => (val: string | number | boolean | null) => updateField(a.id, field, val)
+              const rowBg = deletingId === a.id ? '#1A0D0D' : undefined
               return (
-                <tr key={a.id} style={{ background: deletingId === a.id ? '#fef2f2' : undefined }}>
+                <tr key={a.id} className="pipeline-row" style={{ background: rowBg }}>
                   <td style={{ ...TD, fontWeight: 600 }}>
                     <EditableCell value={a.artist_name} onSave={upd('artist_name')} />
                   </td>
@@ -266,7 +276,7 @@ export default function PipelineView({ month }: Props) {
                     <EditableCell value={a.date_added} type="date" onSave={upd('date_added')} />
                   </td>
 
-                  <td style={TD}>
+                  <td style={{ ...TD, borderLeft: '1px solid #1A1A1A' }}>
                     <EditableCell value={a.tiktok_followers} type="number" onSave={upd('tiktok_followers')}
                       render={v => fmt(v as number | null)} />
                   </td>
@@ -284,7 +294,7 @@ export default function PipelineView({ month }: Props) {
                       render={v => fmt(v as number | null)} />
                   </td>
 
-                  <td style={TD}>
+                  <td style={{ ...TD, borderLeft: '1px solid #1A1A1A' }}>
                     <EditableCell value={a.spotify_monthly_listeners} type="number" onSave={upd('spotify_monthly_listeners')}
                       render={v => fmt(v as number | null)} />
                   </td>
@@ -302,12 +312,12 @@ export default function PipelineView({ month }: Props) {
                       onSave={upd('spotify_playlist_presence')} />
                   </td>
 
-                  <td style={TD}>
+                  <td style={{ ...TD, borderLeft: '1px solid #1A1A1A' }}>
                     <EditableCell value={a.instagram_followers} type="number" onSave={upd('instagram_followers')}
                       render={v => fmt(v as number | null)} />
                   </td>
 
-                  <td style={TD}>
+                  <td style={{ ...TD, borderLeft: '1px solid #1A1A1A' }}>
                     <EditableCell value={a.stage} type="select" options={STAGES} onSave={upd('stage')}
                       render={v => <StagePill stage={v as Stage | null} />} />
                   </td>
@@ -329,18 +339,13 @@ export default function PipelineView({ month }: Props) {
                   <td style={{ ...TD, maxWidth: 200 }}>
                     <EditableCell value={a.notes} onSave={upd('notes')} />
                   </td>
-                  <td style={{ ...TD, textAlign: 'center' }}>
+                  <td style={{ ...TD, textAlign: 'center', padding: '6px 8px' }}>
                     <button
+                      className="row-delete-btn"
                       onClick={() => handleDelete(a.id)}
                       disabled={deletingId === a.id}
-                      style={{
-                        background: 'none', border: '1px solid #fca5a5', color: '#ef4444',
-                        borderRadius: 4, padding: '2px 8px', cursor: 'pointer', fontSize: 12,
-                      }}
                       title="Delete artist"
-                    >
-                      Delete
-                    </button>
+                    >×</button>
                   </td>
                 </tr>
               )

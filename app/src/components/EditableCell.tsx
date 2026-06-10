@@ -11,6 +11,7 @@ interface Props {
 
 export default function EditableCell({ value, type = 'text', options, onSave, render }: Props) {
   const [editing, setEditing] = useState(false)
+  const [hovering, setHovering] = useState(false)
   const [draft, setDraft] = useState<string>(value == null ? '' : String(value))
   const inputRef = useRef<HTMLInputElement | HTMLSelectElement | null>(null)
 
@@ -29,7 +30,6 @@ export default function EditableCell({ value, type = 'text', options, onSave, re
       const n = draft === '' ? null : Number(draft)
       onSave(isNaN(n as number) ? null : n)
     } else if (type === 'boolean') {
-      // handled via toggle, not this flow
       onSave(draft === 'true')
     } else {
       onSave(draft === '' ? null : draft)
@@ -45,9 +45,9 @@ export default function EditableCell({ value, type = 'text', options, onSave, re
     return (
       <input
         type="checkbox"
+        className="ben-check"
         checked={!!value}
         onChange={e => onSave(e.target.checked)}
-        style={{ cursor: 'pointer' }}
       />
     )
   }
@@ -83,10 +83,23 @@ export default function EditableCell({ value, type = 'text', options, onSave, re
   return (
     <div
       onClick={startEdit}
-      style={{ cursor: 'text', minHeight: '1.4em', minWidth: 40 }}
+      onMouseEnter={() => setHovering(true)}
+      onMouseLeave={() => setHovering(false)}
+      style={{
+        cursor: 'text',
+        minHeight: '1.4em',
+        minWidth: 40,
+        borderBottom: hovering ? '1px solid #2A2A2A' : '1px solid transparent',
+      }}
       title="Click to edit"
     >
-      {render ? render(value) : (value == null || value === '' ? <span style={{ color: '#aaa' }}>—</span> : String(value))}
+      {render
+        ? render(value)
+        : (value == null || value === ''
+          ? <span style={{ color: '#444444' }}>—</span>
+          : String(value)
+        )
+      }
     </div>
   )
 }

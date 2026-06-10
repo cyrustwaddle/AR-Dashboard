@@ -23,45 +23,72 @@ function addMonths(m: string, delta: number): string {
 export default function App() {
   const [tab, setTab] = useState<Tab>('pipeline')
   const [month, setMonth] = useState(currentMonthStr)
-
-  const navStyle = (t: Tab): React.CSSProperties => ({
-    padding: '10px 20px',
-    cursor: 'pointer',
-    border: 'none',
-    borderBottom: tab === t ? '3px solid #2563eb' : '3px solid transparent',
-    background: 'none',
-    fontWeight: tab === t ? 700 : 400,
-    fontSize: 14,
-    color: tab === t ? '#2563eb' : '#374151',
-  })
+  const [prevHover, setPrevHover] = useState(false)
+  const [nextHover, setNextHover] = useState(false)
 
   return (
-    <div style={{ fontFamily: 'system-ui, sans-serif', minHeight: '100vh', background: '#fff' }}>
-      <header style={{
-        display: 'flex', alignItems: 'center', gap: 8,
-        padding: '0 16px', borderBottom: '1px solid #e2e8f0',
-        background: '#fff', boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
-      }}>
-        <span style={{ fontWeight: 800, fontSize: 18, letterSpacing: '-0.02em', marginRight: 16 }}>
-          A&amp;R Dashboard
-        </span>
-        <button style={navStyle('pipeline')} onClick={() => setTab('pipeline')}>Pipeline</button>
-        <button style={navStyle('onboarding')} onClick={() => setTab('onboarding')}>Onboarding</button>
+    <div style={{ fontFamily: "'Inter', sans-serif", minHeight: '100vh', background: '#0A0A0A' }}>
 
-        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 6 }}>
+      {/* Top bar */}
+      <header style={{
+        display: 'flex', alignItems: 'center',
+        padding: '0 20px', height: 48,
+        borderBottom: '1px solid #1E1E1E',
+        background: '#0A0A0A',
+      }}>
+        {/* Logo */}
+        <span style={{ userSelect: 'none', flexShrink: 0 }}>
+          <span style={{ fontWeight: 700, fontSize: 13, letterSpacing: '0.08em', color: '#E0142A', textTransform: 'uppercase' }}>A&amp;R</span>
+          <span style={{ fontWeight: 300, fontSize: 13, letterSpacing: '0.08em', color: '#F0F0F0', textTransform: 'uppercase' }}>{' '}DASHBOARD</span>
+        </span>
+
+        {/* Month nav — centered */}
+        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
           <button
+            style={{ background: 'none', border: 'none', color: prevHover ? '#F0F0F0' : '#888888', fontSize: 18, padding: '0 6px', lineHeight: 1, borderRadius: 0 }}
+            onMouseEnter={() => setPrevHover(true)}
+            onMouseLeave={() => setPrevHover(false)}
             onClick={() => setMonth(m => addMonths(m, -1))}
-            style={{ padding: '4px 10px', cursor: 'pointer', border: '1px solid #e2e8f0', borderRadius: 4, background: '#fff', fontSize: 16, lineHeight: 1 }}
           >‹</button>
-          <span style={{ minWidth: 130, textAlign: 'center', fontWeight: 600, fontSize: 14 }}>
+          <span style={{ color: '#F0F0F0', fontWeight: 500, fontSize: 13, minWidth: 130, textAlign: 'center', letterSpacing: '0.02em' }}>
             {formatMonthLabel(month)}
           </span>
           <button
+            style={{ background: 'none', border: 'none', color: nextHover ? '#F0F0F0' : '#888888', fontSize: 18, padding: '0 6px', lineHeight: 1, borderRadius: 0 }}
+            onMouseEnter={() => setNextHover(true)}
+            onMouseLeave={() => setNextHover(false)}
             onClick={() => setMonth(m => addMonths(m, 1))}
-            style={{ padding: '4px 10px', cursor: 'pointer', border: '1px solid #e2e8f0', borderRadius: 4, background: '#fff', fontSize: 16, lineHeight: 1 }}
           >›</button>
         </div>
+
+        {/* Right spacer to balance logo */}
+        <span style={{ flexShrink: 0, minWidth: 100 }} />
       </header>
+
+      {/* Tab bar */}
+      <nav style={{ display: 'flex', borderBottom: '1px solid #1E1E1E', background: '#0A0A0A', padding: '0 20px' }}>
+        {(['pipeline', 'onboarding'] as Tab[]).map(t => (
+          <button
+            key={t}
+            onClick={() => setTab(t)}
+            style={{
+              background: 'none',
+              border: 'none',
+              borderBottom: tab === t ? '2px solid #E0142A' : '2px solid transparent',
+              color: tab === t ? '#F0F0F0' : '#444444',
+              fontSize: 11,
+              fontWeight: 500,
+              letterSpacing: '0.06em',
+              textTransform: 'uppercase',
+              padding: '10px 16px',
+              cursor: 'pointer',
+              borderRadius: 0,
+            }}
+          >
+            {t === 'pipeline' ? 'Pipeline' : 'Onboarding Checklist'}
+          </button>
+        ))}
+      </nav>
 
       <main>
         {tab === 'pipeline' && <PipelineView month={month} />}

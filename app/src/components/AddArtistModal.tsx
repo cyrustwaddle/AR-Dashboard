@@ -68,9 +68,19 @@ export default function AddArtistModal({ onClose, onSubmit }: Props) {
     }
   }
 
-  const inputStyle: React.CSSProperties = { width: '100%', boxSizing: 'border-box', padding: '4px 6px' }
+  const inputStyle: React.CSSProperties = { width: '100%', boxSizing: 'border-box' }
   const fieldStyle: React.CSSProperties = { marginBottom: 10 }
-  const labelStyle: React.CSSProperties = { display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 2, color: '#555' }
+  const labelStyle: React.CSSProperties = {
+    display: 'block', fontSize: 11, fontWeight: 500,
+    marginBottom: 4, color: '#888888',
+    letterSpacing: '0.06em', textTransform: 'uppercase',
+  }
+  const sectionStyle: React.CSSProperties = {
+    margin: '14px 0 8px',
+    fontSize: 10, fontWeight: 500, letterSpacing: '0.08em',
+    textTransform: 'uppercase', color: '#333333',
+    borderBottom: '1px solid #1E1E1E', paddingBottom: 6,
+  }
 
   function Field({ label, children }: { label: string; children: React.ReactNode }) {
     return (
@@ -116,21 +126,38 @@ export default function AddArtistModal({ onClose, onSubmit }: Props) {
 
   return (
     <div style={{
-      position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)',
+      position: 'fixed', inset: 0,
+      background: 'rgba(0,0,0,0.85)',
+      backdropFilter: 'blur(2px)',
       display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000,
     }} onClick={e => { if (e.target === e.currentTarget) onClose() }}>
       <div style={{
-        background: '#fff', borderRadius: 8, padding: 24, width: 720,
-        maxWidth: '95vw', maxHeight: '90vh', overflowY: 'auto',
-        boxShadow: '0 8px 32px rgba(0,0,0,0.2)',
+        background: '#111111',
+        border: '1px solid #1E1E1E',
+        borderRadius: 4,
+        padding: 24,
+        width: 720,
+        maxWidth: '95vw',
+        maxHeight: '90vh',
+        overflowY: 'auto',
+        boxShadow: '0 16px 48px rgba(0,0,0,0.6)',
       }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-          <h2 style={{ margin: 0, fontSize: 18 }}>Add Artist</h2>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', fontSize: 20, cursor: 'pointer' }}>×</button>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+          <h2 style={{ margin: 0, fontSize: 14, fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase', color: '#F0F0F0' }}>
+            Add Artist
+          </h2>
+          <button
+            onClick={onClose}
+            style={{ background: 'none', border: 'none', color: '#444444', fontSize: 20, cursor: 'pointer', lineHeight: 1, padding: '0 4px' }}
+            onMouseEnter={e => (e.currentTarget.style.color = '#F0F0F0')}
+            onMouseLeave={e => (e.currentTarget.style.color = '#444444')}
+          >×</button>
         </div>
-        {error && <p style={{ color: 'red', margin: '0 0 12px' }}>{error}</p>}
+
+        {error && <p style={{ color: '#E0142A', margin: '0 0 12px', fontSize: 12 }}>{error}</p>}
+
         <form onSubmit={handleSubmit}>
-          <h4 style={{ margin: '0 0 8px', color: '#333' }}>Identity</h4>
+          <p style={sectionStyle}>Identity</p>
           <div style={row}>
             <div style={col}><Field label="Artist Name *"><Txt field="artist_name" placeholder="Required" /></Field></div>
             <div style={col}><Field label="Genre / Lane"><Txt field="genre_lane" /></Field></div>
@@ -147,7 +174,7 @@ export default function AddArtistModal({ onClose, onSubmit }: Props) {
             <div style={col} />
           </div>
 
-          <h4 style={{ margin: '12px 0 8px', color: '#333' }}>TikTok</h4>
+          <p style={sectionStyle}>TikTok</p>
           <div style={row}>
             <div style={col}><Field label="Followers"><Num field="tiktok_followers" /></Field></div>
             <div style={col}><Field label="Followers (Prev Wk)"><Num field="tiktok_followers_prev" /></Field></div>
@@ -155,7 +182,7 @@ export default function AddArtistModal({ onClose, onSubmit }: Props) {
             <div style={col}><Field label="UGC Count"><Num field="tiktok_ugc_count" /></Field></div>
           </div>
 
-          <h4 style={{ margin: '12px 0 8px', color: '#333' }}>Spotify</h4>
+          <p style={sectionStyle}>Spotify</p>
           <div style={row}>
             <div style={col}><Field label="Monthly Listeners"><Num field="spotify_monthly_listeners" /></Field></div>
             <div style={col}><Field label="MLS (Prev Wk)"><Num field="spotify_mls_prev" /></Field></div>
@@ -163,18 +190,24 @@ export default function AddArtistModal({ onClose, onSubmit }: Props) {
             <div style={col}><Field label="Playlist Presence"><Sel field="spotify_playlist_presence" opts={PLAYLIST_PRESENCES} /></Field></div>
           </div>
 
-          <h4 style={{ margin: '12px 0 8px', color: '#333' }}>Instagram</h4>
+          <p style={sectionStyle}>Instagram</p>
           <div style={row}>
             <div style={col}><Field label="Followers"><Num field="instagram_followers" /></Field></div>
             <div style={{ flex: 3 }} />
           </div>
 
-          <h4 style={{ margin: '12px 0 8px', color: '#333' }}>Pipeline</h4>
+          <p style={sectionStyle}>Pipeline</p>
           <div style={row}>
             <div style={col}><Field label="Stage"><Sel field="stage" opts={STAGES} /></Field></div>
             <div style={col}><Field label="Ben-Sendable">
-              <input type="checkbox" checked={!!form.ben_sendable}
-                onChange={e => set('ben_sendable', e.target.checked)} />
+              <div style={{ paddingTop: 6 }}>
+                <input
+                  type="checkbox"
+                  className="ben-check"
+                  checked={!!form.ben_sendable}
+                  onChange={e => set('ben_sendable', e.target.checked)}
+                />
+              </div>
             </Field></div>
             <div style={col}><Field label="Last Contact"><DateField field="last_contact" /></Field></div>
             <div style={col}><Field label="Next Action Date"><DateField field="next_action_date" /></Field></div>
@@ -188,11 +221,11 @@ export default function AddArtistModal({ onClose, onSubmit }: Props) {
               rows={3} style={{ ...inputStyle, resize: 'vertical' }} />
           </Field>
 
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 16 }}>
-            <button type="button" onClick={onClose} disabled={saving}
-              style={{ padding: '7px 20px', cursor: 'pointer' }}>Cancel</button>
-            <button type="submit" disabled={saving}
-              style={{ padding: '7px 20px', cursor: 'pointer', background: '#2563eb', color: '#fff', border: 'none', borderRadius: 4 }}>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 20 }}>
+            <button type="button" className="btn-cancel" onClick={onClose} disabled={saving}>
+              Cancel
+            </button>
+            <button type="submit" className="btn-primary" disabled={saving}>
               {saving ? 'Saving…' : 'Add Artist'}
             </button>
           </div>
