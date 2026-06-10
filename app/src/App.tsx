@@ -1,8 +1,9 @@
 import { useState } from 'react'
 import PipelineView from './components/PipelineView'
 import OnboardingView from './components/OnboardingView'
+import PitchGenerator from './components/PitchGenerator'
 
-type Tab = 'pipeline' | 'onboarding'
+type Tab = 'pipeline' | 'onboarding' | 'pitch'
 
 function currentMonthStr(): string {
   const now = new Date()
@@ -85,7 +86,7 @@ export default function App() {
               borderRadius: 0,
             }}
           >
-            {t === 'pipeline' ? 'Pipeline' : 'Onboarding Checklist'}
+            {t === 'pipeline' ? 'Pipeline' : t === 'onboarding' ? 'Onboarding Checklist' : 'Pitch Generator'}
           </button>
         ))}
       </nav>
@@ -93,6 +94,7 @@ export default function App() {
       <main>
         {tab === 'pipeline' && <PipelineView month={month} />}
         {tab === 'onboarding' && <OnboardingView month={month} />}
+        {tab === 'pitch' && <PitchGenerator />}
       </main>
     </div>
   )
