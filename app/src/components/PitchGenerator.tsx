@@ -160,6 +160,7 @@ Rules:
 - If Harold is mentioned, keep it factual: "Harold and I have spoken with him/her on the label side — he isn't moving on it."
 - Tone: direct, peer-to-peer, no overselling
 - Never start with the artist name
+- Never use em dashes (—). Use a comma, period, or rewrite the sentence instead.
 - Return ONLY the polished paragraph, no preamble, no explanation`
 
       const polishedArtists = await Promise.all(
