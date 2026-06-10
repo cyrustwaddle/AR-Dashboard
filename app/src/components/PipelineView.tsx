@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import type { Artist, ArtistWithGrowth, ArtistInsert, Stage } from '../lib/types'
-import { computeGrowth, SOURCES, PLAYLIST_PRESENCES, STAGES } from '../lib/types'
+import { computeGrowth, SOURCES, STAGES } from '../lib/types'
 import EditableCell from './EditableCell'
 import StagePill from './StagePill'
 import AddArtistModal from './AddArtistModal'
@@ -193,8 +193,8 @@ export default function PipelineView({ month }: Props) {
           <thead>
             <tr>
               <th style={SECTION_TH} colSpan={8}>Identity</th>
-              <th style={SECTION_TH} colSpan={5}>TikTok</th>
-              <th style={SECTION_TH} colSpan={5}>Spotify</th>
+              <th style={SECTION_TH} colSpan={3}>TikTok</th>
+              <th style={SECTION_TH} colSpan={4}>Spotify</th>
               <th style={SECTION_TH} colSpan={1}>Instagram</th>
               <th style={SECTION_TH} colSpan={7}>Pipeline</th>
               <th style={SECTION_TH} />
@@ -212,14 +212,11 @@ export default function PipelineView({ month }: Props) {
               <th style={{ ...TH, borderLeft: '1px solid #2A2A2A' }}>Followers</th>
               <th style={TH}>Prev Wk</th>
               <th style={TH}>7d Growth</th>
-              <th style={TH}>Avg Views</th>
-              <th style={TH}>UGC</th>
 
               <th style={{ ...TH, borderLeft: '1px solid #2A2A2A' }}>Monthly Listeners</th>
               <th style={TH}>Prev Wk</th>
               <th style={TH}>7d Growth</th>
               <th style={TH}>Top Streams</th>
-              <th style={TH}>Playlist</th>
 
               <th style={{ ...TH, borderLeft: '1px solid #2A2A2A' }}>Followers</th>
 
@@ -236,7 +233,7 @@ export default function PipelineView({ month }: Props) {
           <tbody>
             {artists.length === 0 && (
               <tr>
-                <td colSpan={27} style={{ ...TD, textAlign: 'center', color: '#444444', padding: 40 }}>
+                <td colSpan={24} style={{ ...TD, textAlign: 'center', color: '#444444', padding: 40 }}>
                   {prevMonthWithData
                     ? 'No artists for this month — use "Copy roster" above to carry over the previous roster.'
                     : 'No artists yet. Click "+ Add Artist" to get started.'}
@@ -285,14 +282,6 @@ export default function PipelineView({ month }: Props) {
                       render={v => fmt(v as number | null)} />
                   </td>
                   <td style={{ ...TD, textAlign: 'right' }}>{pct(a.tiktok_growth_pct)}</td>
-                  <td style={TD}>
-                    <EditableCell value={a.tiktok_avg_views} type="number" onSave={upd('tiktok_avg_views')}
-                      render={v => fmt(v as number | null)} />
-                  </td>
-                  <td style={TD}>
-                    <EditableCell value={a.tiktok_ugc_count} type="number" onSave={upd('tiktok_ugc_count')}
-                      render={v => fmt(v as number | null)} />
-                  </td>
 
                   <td style={{ ...TD, borderLeft: '1px solid #1A1A1A' }}>
                     <EditableCell value={a.spotify_monthly_listeners} type="number" onSave={upd('spotify_monthly_listeners')}
@@ -306,10 +295,6 @@ export default function PipelineView({ month }: Props) {
                   <td style={TD}>
                     <EditableCell value={a.spotify_top_track_streams} type="number" onSave={upd('spotify_top_track_streams')}
                       render={v => fmt(v as number | null)} />
-                  </td>
-                  <td style={TD}>
-                    <EditableCell value={a.spotify_playlist_presence} type="select" options={PLAYLIST_PRESENCES}
-                      onSave={upd('spotify_playlist_presence')} />
                   </td>
 
                   <td style={{ ...TD, borderLeft: '1px solid #1A1A1A' }}>

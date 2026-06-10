@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
-import type { ArtistInsert, Source, PlaylistPresence, Stage } from '../lib/types'
-import { SOURCES, PLAYLIST_PRESENCES, STAGES } from '../lib/types'
+import type { ArtistInsert, Source, Stage } from '../lib/types'
+import { SOURCES, STAGES } from '../lib/types'
 
 interface Props {
   onClose: () => void
@@ -229,12 +229,7 @@ export default function AddArtistModal({ onClose, onSubmit }: Props) {
             <div style={col}><Field label="Followers (Prev Wk)">
               <Num value={form.tiktok_followers_prev} onChange={v => set('tiktok_followers_prev', v)} />
             </Field></div>
-            <div style={col}><Field label="Avg Views (Last 5)">
-              <Num value={form.tiktok_avg_views} onChange={v => set('tiktok_avg_views', v)} />
-            </Field></div>
-            <div style={col}><Field label="UGC Count">
-              <Num value={form.tiktok_ugc_count} onChange={v => set('tiktok_ugc_count', v)} />
-            </Field></div>
+            <div style={{ flex: 2 }} />
           </div>
 
           <p style={sectionStyle}>Spotify</p>
@@ -248,9 +243,7 @@ export default function AddArtistModal({ onClose, onSubmit }: Props) {
             <div style={col}><Field label="Top Track Streams">
               <Num value={form.spotify_top_track_streams} onChange={v => set('spotify_top_track_streams', v)} />
             </Field></div>
-            <div style={col}><Field label="Playlist Presence">
-              <Sel<PlaylistPresence> value={form.spotify_playlist_presence} opts={PLAYLIST_PRESENCES} onChange={v => set('spotify_playlist_presence', v)} />
-            </Field></div>
+            <div style={col} />
           </div>
 
           <p style={sectionStyle}>Instagram</p>
