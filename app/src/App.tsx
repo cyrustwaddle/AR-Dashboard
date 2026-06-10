@@ -27,14 +27,14 @@ export default function App() {
   const [nextHover, setNextHover] = useState(false)
 
   return (
-    <div style={{ fontFamily: "'Inter', sans-serif", minHeight: '100vh', background: '#0A0A0A' }}>
+    <div style={{ fontFamily: "'Inter', sans-serif", minHeight: '100vh', background: '#141414' }}>
 
       {/* Top bar */}
       <header style={{
         display: 'flex', alignItems: 'center',
         padding: '0 20px', height: 48,
-        borderBottom: '1px solid #1E1E1E',
-        background: '#0A0A0A',
+        borderBottom: '1px solid #2A2A2A',
+        background: '#0F0808',
       }}>
         {/* Logo */}
         <span style={{ userSelect: 'none', flexShrink: 0 }}>
@@ -66,7 +66,7 @@ export default function App() {
       </header>
 
       {/* Tab bar */}
-      <nav style={{ display: 'flex', borderBottom: '1px solid #1E1E1E', background: '#0A0A0A', padding: '0 20px' }}>
+      <nav style={{ display: 'flex', borderBottom: '1px solid #2A2A2A', background: '#141414', padding: '0 20px' }}>
         {(['pipeline', 'onboarding'] as Tab[]).map(t => (
           <button
             key={t}

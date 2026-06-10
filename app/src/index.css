@@ -1,7 +1,7 @@
 *, *::before, *::after { box-sizing: border-box; }
 
 body {
-  background: #0A0A0A;
+  background: #141414;
   color: #F0F0F0;
   font-family: 'Inter', sans-serif;
   font-size: 13px;
@@ -16,12 +16,12 @@ body {
 }
 
 ::-webkit-scrollbar { width: 4px; height: 4px; }
-::-webkit-scrollbar-track { background: #0A0A0A; }
-::-webkit-scrollbar-thumb { background: #1E1E1E; border-radius: 2px; }
+::-webkit-scrollbar-track { background: #141414; }
+::-webkit-scrollbar-thumb { background: #2A2A2A; border-radius: 2px; }
 
 input, select, textarea {
-  background: #111111;
-  border: 1px solid #1E1E1E;
+  background: #1C1C1C;
+  border: 1px solid #2A2A2A;
   color: #F0F0F0;
   border-radius: 4px;
   padding: 6px 10px;
@@ -32,7 +32,7 @@ input, select, textarea {
 }
 input:focus, select:focus, textarea:focus { border-color: #E0142A; }
 input::placeholder, textarea::placeholder { color: #444444; }
-select option { background: #111111; color: #F0F0F0; }
+select option { background: #1C1C1C; color: #F0F0F0; }
 
 button {
   font-family: 'Inter', sans-serif;
@@ -48,7 +48,7 @@ table { border-collapse: collapse; }
 
 /* Pipeline table */
 .pipeline-row { transition: background 0.1s ease; }
-.pipeline-row:hover { background: #111111 !important; }
+.pipeline-row:hover { background: #1C1C1C !important; }
 
 .row-delete-btn {
   visibility: hidden;
@@ -66,7 +66,7 @@ table { border-collapse: collapse; }
 /* Buttons */
 .btn-ghost {
   background: transparent;
-  border: 1px solid #1E1E1E;
+  border: 1px solid #2A2A2A;
   color: #888888;
   padding: 6px 14px;
   border-radius: 3px;
@@ -91,7 +91,7 @@ table { border-collapse: collapse; }
 
 .btn-cancel {
   background: transparent;
-  border: 1px solid #1E1E1E;
+  border: 1px solid #2A2A2A;
   color: #888888;
   padding: 7px 20px;
   border-radius: 3px;

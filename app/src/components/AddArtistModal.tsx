@@ -79,7 +79,7 @@ export default function AddArtistModal({ onClose, onSubmit }: Props) {
     margin: '14px 0 8px',
     fontSize: 10, fontWeight: 500, letterSpacing: '0.08em',
     textTransform: 'uppercase', color: '#333333',
-    borderBottom: '1px solid #1E1E1E', paddingBottom: 6,
+    borderBottom: '1px solid #2A2A2A', paddingBottom: 6,
   }
 
   function Field({ label, children }: { label: string; children: React.ReactNode }) {
@@ -132,8 +132,8 @@ export default function AddArtistModal({ onClose, onSubmit }: Props) {
       display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000,
     }} onClick={e => { if (e.target === e.currentTarget) onClose() }}>
       <div style={{
-        background: '#111111',
-        border: '1px solid #1E1E1E',
+        background: '#1C1C1C',
+        border: '1px solid #2A2A2A',
         borderRadius: 4,
         padding: 24,
         width: 720,

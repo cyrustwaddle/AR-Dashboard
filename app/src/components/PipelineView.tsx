@@ -37,20 +37,20 @@ function formatMonthLabel(m: string): string {
 }
 
 const TH: React.CSSProperties = {
-  position: 'sticky', top: 0, background: '#0A0A0A',
+  position: 'sticky', top: 0, background: '#141414',
   padding: '10px 12px', textAlign: 'left', fontSize: 11,
   fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.06em',
-  color: '#444444', borderBottom: '1px solid #1E1E1E', whiteSpace: 'nowrap', zIndex: 2,
+  color: '#444444', borderBottom: '1px solid #2A2A2A', whiteSpace: 'nowrap', zIndex: 2,
 }
 const TD: React.CSSProperties = {
   padding: '6px 12px', verticalAlign: 'middle', fontSize: 13,
-  borderBottom: '1px solid #0F0F0F', color: '#F0F0F0',
+  borderBottom: '1px solid #1A1A1A', color: '#F0F0F0',
 }
 const SECTION_TH: React.CSSProperties = {
-  position: 'sticky', top: 0, background: '#0A0A0A',
+  position: 'sticky', top: 0, background: '#141414',
   padding: '4px 12px', textAlign: 'center', fontSize: 10,
   fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.08em',
-  color: '#2A2A2A', borderBottom: '1px solid #1E1E1E', whiteSpace: 'nowrap', zIndex: 2,
+  color: '#2A2A2A', borderBottom: '1px solid #2A2A2A', whiteSpace: 'nowrap', zIndex: 2,
 }
 
 export default function PipelineView({ month }: Props) {
@@ -165,7 +165,7 @@ export default function PipelineView({ month }: Props) {
       {/* Toolbar */}
       <div style={{
         display: 'flex', alignItems: 'center', gap: 12,
-        padding: '10px 20px', borderBottom: '1px solid #1E1E1E',
+        padding: '10px 20px', borderBottom: '1px solid #2A2A2A',
       }}>
         <span style={{ fontWeight: 500, fontSize: 12, letterSpacing: '0.06em', textTransform: 'uppercase', color: '#444444' }}>
           {artists.length} <span style={{ color: '#2A2A2A' }}>artists</span>
@@ -188,7 +188,7 @@ export default function PipelineView({ month }: Props) {
         </button>
       </div>
 
-      <div style={{ overflowX: 'auto', borderTop: '1px solid #1E1E1E' }}>
+      <div style={{ overflowX: 'auto', borderTop: '1px solid #2A2A2A' }}>
         <table style={{ borderCollapse: 'collapse', width: '100%', fontSize: 13 }}>
           <thead>
             <tr>
@@ -209,21 +209,21 @@ export default function PipelineView({ month }: Props) {
               <th style={TH}>Source</th>
               <th style={TH}>Date Added</th>
 
-              <th style={{ ...TH, borderLeft: '1px solid #1E1E1E' }}>Followers</th>
+              <th style={{ ...TH, borderLeft: '1px solid #2A2A2A' }}>Followers</th>
               <th style={TH}>Prev Wk</th>
               <th style={TH}>7d Growth</th>
               <th style={TH}>Avg Views</th>
               <th style={TH}>UGC</th>
 
-              <th style={{ ...TH, borderLeft: '1px solid #1E1E1E' }}>Monthly Listeners</th>
+              <th style={{ ...TH, borderLeft: '1px solid #2A2A2A' }}>Monthly Listeners</th>
               <th style={TH}>Prev Wk</th>
               <th style={TH}>7d Growth</th>
               <th style={TH}>Top Streams</th>
               <th style={TH}>Playlist</th>
 
-              <th style={{ ...TH, borderLeft: '1px solid #1E1E1E' }}>Followers</th>
+              <th style={{ ...TH, borderLeft: '1px solid #2A2A2A' }}>Followers</th>
 
-              <th style={{ ...TH, borderLeft: '1px solid #1E1E1E' }}>Stage</th>
+              <th style={{ ...TH, borderLeft: '1px solid #2A2A2A' }}>Stage</th>
               <th style={{ ...TH, textAlign: 'center' }}>Ben?</th>
               <th style={TH}>Last Contact</th>
               <th style={TH}>Next Action</th>

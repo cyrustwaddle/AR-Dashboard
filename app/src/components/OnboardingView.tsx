@@ -114,14 +114,14 @@ export default function OnboardingView({ month }: Props) {
               <div
                 key={row.id}
                 style={{
-                  background: '#111111',
-                  border: `1px solid ${done ? '#2A1A1A' : '#1E1E1E'}`,
+                  background: '#1C1C1C',
+                  border: `1px solid ${done ? '#2A1A1A' : '#2A2A2A'}`,
                   borderRadius: 4,
                   padding: 16,
                   transition: 'border-color 0.15s',
                 }}
                 onMouseEnter={e => { if (!done) (e.currentTarget as HTMLDivElement).style.borderColor = '#2A2A2A' }}
-                onMouseLeave={e => { if (!done) (e.currentTarget as HTMLDivElement).style.borderColor = '#1E1E1E' }}
+                onMouseLeave={e => { if (!done) (e.currentTarget as HTMLDivElement).style.borderColor = '#2A2A2A' }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
                   <span style={{ fontSize: 14, fontWeight: 600, color: '#F0F0F0' }}>{row.artist_name}</span>
@@ -141,7 +141,7 @@ export default function OnboardingView({ month }: Props) {
                   {checkedCount} / {CHECKBOX_FIELDS.length} complete
                 </div>
 
-                <div style={{ width: '100%', height: 2, background: '#1E1E1E', borderRadius: 1, marginBottom: 12 }}>
+                <div style={{ width: '100%', height: 2, background: '#2A2A2A', borderRadius: 1, marginBottom: 12 }}>
                   <div style={{ width: `${progress * 100}%`, height: 2, background: '#E0142A', borderRadius: 1, transition: 'width 0.2s ease' }} />
                 </div>
 
@@ -154,7 +154,7 @@ export default function OnboardingView({ month }: Props) {
                         style={{
                           display: 'flex', alignItems: 'center', gap: 8,
                           padding: '5px 0',
-                          borderBottom: i < CHECKBOX_FIELDS.length - 1 ? '1px solid #0F0F0F' : 'none',
+                          borderBottom: i < CHECKBOX_FIELDS.length - 1 ? '1px solid #1A1A1A' : 'none',
                           cursor: 'pointer',
                         }}
                       >
