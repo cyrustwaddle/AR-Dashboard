@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
-import type { ArtistInsert } from '../lib/types'
+import type { ArtistInsert, Source, PlaylistPresence, Stage } from '../lib/types'
 import { SOURCES, PLAYLIST_PRESENCES, STAGES } from '../lib/types'
 
 interface Props {
@@ -35,14 +35,92 @@ const empty: ArtistInsert = {
   notes: null,
 }
 
-function numOrNull(s: string): number | null {
-  if (s === '') return null
-  const n = Number(s)
-  return isNaN(n) ? null : n
+const inputStyle: React.CSSProperties = { width: '100%', boxSizing: 'border-box' }
+const fieldStyle: React.CSSProperties = { marginBottom: 10 }
+const labelStyle: React.CSSProperties = {
+  display: 'block', fontSize: 11, fontWeight: 500,
+  marginBottom: 4, color: '#888888',
+  letterSpacing: '0.06em', textTransform: 'uppercase',
+}
+const sectionStyle: React.CSSProperties = {
+  margin: '14px 0 8px',
+  fontSize: 10, fontWeight: 500, letterSpacing: '0.08em',
+  textTransform: 'uppercase', color: '#333333',
+  borderBottom: '1px solid #2A2A2A', paddingBottom: 6,
 }
 
-function strOrNull(s: string): string | null {
-  return s === '' ? null : s
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div style={fieldStyle}>
+      <label style={labelStyle}>{label}</label>
+      {children}
+    </div>
+  )
+}
+
+function Txt({ value, onChange, placeholder }: {
+  value: string | null
+  onChange: (v: string | null) => void
+  placeholder?: string
+}) {
+  return (
+    <input
+      type="text"
+      value={value ?? ''}
+      placeholder={placeholder}
+      onChange={e => onChange(e.target.value === '' ? null : e.target.value)}
+      style={inputStyle}
+    />
+  )
+}
+
+function Num({ value, onChange }: {
+  value: number | null
+  onChange: (v: number | null) => void
+}) {
+  return (
+    <input
+      type="number"
+      value={value == null ? '' : String(value)}
+      onChange={e => {
+        if (e.target.value === '') { onChange(null); return }
+        const n = Number(e.target.value)
+        onChange(isNaN(n) ? null : n)
+      }}
+      style={inputStyle}
+    />
+  )
+}
+
+function DateField({ value, onChange }: {
+  value: string | null
+  onChange: (v: string | null) => void
+}) {
+  return (
+    <input
+      type="date"
+      value={value ?? ''}
+      onChange={e => onChange(e.target.value === '' ? null : e.target.value)}
+      style={inputStyle}
+    />
+  )
+}
+
+function Sel<T extends string>({ value, opts, onChange }: {
+  value: T | null
+  opts: readonly T[]
+  onChange: (v: T | null) => void
+}) {
+  return (
+    <select
+      value={value ?? ''}
+      onChange={e => onChange((e.target.value || null) as T | null)}
+      style={inputStyle}
+    >
+      <option value="">—</option>
+      {opts.map(o => <option key={o} value={o}>{o}</option>)}
+    </select>
+  )
 }
 
 export default function AddArtistModal({ onClose, onSubmit }: Props) {
@@ -66,59 +144,6 @@ export default function AddArtistModal({ onClose, onSubmit }: Props) {
       setError(err instanceof Error ? err.message : 'Save failed')
       setSaving(false)
     }
-  }
-
-  const inputStyle: React.CSSProperties = { width: '100%', boxSizing: 'border-box' }
-  const fieldStyle: React.CSSProperties = { marginBottom: 10 }
-  const labelStyle: React.CSSProperties = {
-    display: 'block', fontSize: 11, fontWeight: 500,
-    marginBottom: 4, color: '#888888',
-    letterSpacing: '0.06em', textTransform: 'uppercase',
-  }
-  const sectionStyle: React.CSSProperties = {
-    margin: '14px 0 8px',
-    fontSize: 10, fontWeight: 500, letterSpacing: '0.08em',
-    textTransform: 'uppercase', color: '#333333',
-    borderBottom: '1px solid #2A2A2A', paddingBottom: 6,
-  }
-
-  function Field({ label, children }: { label: string; children: React.ReactNode }) {
-    return (
-      <div style={fieldStyle}>
-        <label style={labelStyle}>{label}</label>
-        {children}
-      </div>
-    )
-  }
-
-  function Sel<T extends string>({ field, opts }: { field: keyof ArtistInsert; opts: readonly T[] }) {
-    return (
-      <select value={(form[field] as string) ?? ''} onChange={e => set(field, e.target.value || null)} style={inputStyle}>
-        <option value="">—</option>
-        {opts.map(o => <option key={o} value={o}>{o}</option>)}
-      </select>
-    )
-  }
-
-  function Txt({ field, placeholder }: { field: keyof ArtistInsert; placeholder?: string }) {
-    return (
-      <input type="text" value={(form[field] as string) ?? ''} placeholder={placeholder}
-        onChange={e => set(field, strOrNull(e.target.value))} style={inputStyle} />
-    )
-  }
-
-  function Num({ field }: { field: keyof ArtistInsert }) {
-    return (
-      <input type="number" value={form[field] == null ? '' : String(form[field])}
-        onChange={e => set(field, numOrNull(e.target.value))} style={inputStyle} />
-    )
-  }
-
-  function DateField({ field }: { field: keyof ArtistInsert }) {
-    return (
-      <input type="date" value={(form[field] as string) ?? ''}
-        onChange={e => set(field, strOrNull(e.target.value))} style={inputStyle} />
-    )
   }
 
   const col: React.CSSProperties = { flex: 1, minWidth: 160 }
@@ -159,46 +184,88 @@ export default function AddArtistModal({ onClose, onSubmit }: Props) {
         <form onSubmit={handleSubmit}>
           <p style={sectionStyle}>Identity</p>
           <div style={row}>
-            <div style={col}><Field label="Artist Name *"><Txt field="artist_name" placeholder="Required" /></Field></div>
-            <div style={col}><Field label="Genre / Lane"><Txt field="genre_lane" /></Field></div>
-            <div style={col}><Field label="Location"><Txt field="location" /></Field></div>
+            <div style={col}><Field label="Artist Name *">
+              <input
+                type="text"
+                value={form.artist_name}
+                placeholder="Required"
+                onChange={e => set('artist_name', e.target.value)}
+                style={inputStyle}
+              />
+            </Field></div>
+            <div style={col}><Field label="Genre / Lane">
+              <Txt value={form.genre_lane} onChange={v => set('genre_lane', v)} />
+            </Field></div>
+            <div style={col}><Field label="Location">
+              <Txt value={form.location} onChange={v => set('location', v)} />
+            </Field></div>
           </div>
           <div style={row}>
-            <div style={col}><Field label="TikTok URL"><Txt field="tiktok_url" placeholder="@handle or URL" /></Field></div>
-            <div style={col}><Field label="Spotify URL"><Txt field="spotify_url" /></Field></div>
-            <div style={col}><Field label="Instagram URL"><Txt field="instagram_url" /></Field></div>
+            <div style={col}><Field label="TikTok URL">
+              <Txt value={form.tiktok_url} onChange={v => set('tiktok_url', v)} placeholder="@handle or URL" />
+            </Field></div>
+            <div style={col}><Field label="Spotify URL">
+              <Txt value={form.spotify_url} onChange={v => set('spotify_url', v)} />
+            </Field></div>
+            <div style={col}><Field label="Instagram URL">
+              <Txt value={form.instagram_url} onChange={v => set('instagram_url', v)} />
+            </Field></div>
           </div>
           <div style={row}>
-            <div style={col}><Field label="Source"><Sel field="source" opts={SOURCES} /></Field></div>
-            <div style={col}><Field label="Date Added"><DateField field="date_added" /></Field></div>
+            <div style={col}><Field label="Source">
+              <Sel<Source> value={form.source} opts={SOURCES} onChange={v => set('source', v)} />
+            </Field></div>
+            <div style={col}><Field label="Date Added">
+              <DateField value={form.date_added} onChange={v => set('date_added', v)} />
+            </Field></div>
             <div style={col} />
           </div>
 
           <p style={sectionStyle}>TikTok</p>
           <div style={row}>
-            <div style={col}><Field label="Followers"><Num field="tiktok_followers" /></Field></div>
-            <div style={col}><Field label="Followers (Prev Wk)"><Num field="tiktok_followers_prev" /></Field></div>
-            <div style={col}><Field label="Avg Views (Last 5)"><Num field="tiktok_avg_views" /></Field></div>
-            <div style={col}><Field label="UGC Count"><Num field="tiktok_ugc_count" /></Field></div>
+            <div style={col}><Field label="Followers">
+              <Num value={form.tiktok_followers} onChange={v => set('tiktok_followers', v)} />
+            </Field></div>
+            <div style={col}><Field label="Followers (Prev Wk)">
+              <Num value={form.tiktok_followers_prev} onChange={v => set('tiktok_followers_prev', v)} />
+            </Field></div>
+            <div style={col}><Field label="Avg Views (Last 5)">
+              <Num value={form.tiktok_avg_views} onChange={v => set('tiktok_avg_views', v)} />
+            </Field></div>
+            <div style={col}><Field label="UGC Count">
+              <Num value={form.tiktok_ugc_count} onChange={v => set('tiktok_ugc_count', v)} />
+            </Field></div>
           </div>
 
           <p style={sectionStyle}>Spotify</p>
           <div style={row}>
-            <div style={col}><Field label="Monthly Listeners"><Num field="spotify_monthly_listeners" /></Field></div>
-            <div style={col}><Field label="MLS (Prev Wk)"><Num field="spotify_mls_prev" /></Field></div>
-            <div style={col}><Field label="Top Track Streams"><Num field="spotify_top_track_streams" /></Field></div>
-            <div style={col}><Field label="Playlist Presence"><Sel field="spotify_playlist_presence" opts={PLAYLIST_PRESENCES} /></Field></div>
+            <div style={col}><Field label="Monthly Listeners">
+              <Num value={form.spotify_monthly_listeners} onChange={v => set('spotify_monthly_listeners', v)} />
+            </Field></div>
+            <div style={col}><Field label="MLS (Prev Wk)">
+              <Num value={form.spotify_mls_prev} onChange={v => set('spotify_mls_prev', v)} />
+            </Field></div>
+            <div style={col}><Field label="Top Track Streams">
+              <Num value={form.spotify_top_track_streams} onChange={v => set('spotify_top_track_streams', v)} />
+            </Field></div>
+            <div style={col}><Field label="Playlist Presence">
+              <Sel<PlaylistPresence> value={form.spotify_playlist_presence} opts={PLAYLIST_PRESENCES} onChange={v => set('spotify_playlist_presence', v)} />
+            </Field></div>
           </div>
 
           <p style={sectionStyle}>Instagram</p>
           <div style={row}>
-            <div style={col}><Field label="Followers"><Num field="instagram_followers" /></Field></div>
+            <div style={col}><Field label="Followers">
+              <Num value={form.instagram_followers} onChange={v => set('instagram_followers', v)} />
+            </Field></div>
             <div style={{ flex: 3 }} />
           </div>
 
           <p style={sectionStyle}>Pipeline</p>
           <div style={row}>
-            <div style={col}><Field label="Stage"><Sel field="stage" opts={STAGES} /></Field></div>
+            <div style={col}><Field label="Stage">
+              <Sel<Stage> value={form.stage} opts={STAGES} onChange={v => set('stage', v)} />
+            </Field></div>
             <div style={col}><Field label="Ben-Sendable">
               <div style={{ paddingTop: 6 }}>
                 <input
@@ -209,16 +276,28 @@ export default function AddArtistModal({ onClose, onSubmit }: Props) {
                 />
               </div>
             </Field></div>
-            <div style={col}><Field label="Last Contact"><DateField field="last_contact" /></Field></div>
-            <div style={col}><Field label="Next Action Date"><DateField field="next_action_date" /></Field></div>
+            <div style={col}><Field label="Last Contact">
+              <DateField value={form.last_contact} onChange={v => set('last_contact', v)} />
+            </Field></div>
+            <div style={col}><Field label="Next Action Date">
+              <DateField value={form.next_action_date} onChange={v => set('next_action_date', v)} />
+            </Field></div>
           </div>
           <div style={row}>
-            <div style={{ flex: 2 }}><Field label="Next Action"><Txt field="next_action" /></Field></div>
-            <div style={col}><Field label="Manager / Team"><Txt field="manager_team" /></Field></div>
+            <div style={{ flex: 2 }}><Field label="Next Action">
+              <Txt value={form.next_action} onChange={v => set('next_action', v)} />
+            </Field></div>
+            <div style={col}><Field label="Manager / Team">
+              <Txt value={form.manager_team} onChange={v => set('manager_team', v)} />
+            </Field></div>
           </div>
           <Field label="Notes">
-            <textarea value={form.notes ?? ''} onChange={e => set('notes', strOrNull(e.target.value))}
-              rows={3} style={{ ...inputStyle, resize: 'vertical' }} />
+            <textarea
+              value={form.notes ?? ''}
+              onChange={e => set('notes', e.target.value === '' ? null : e.target.value)}
+              rows={3}
+              style={{ ...inputStyle, resize: 'vertical' }}
+            />
           </Field>
 
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 20 }}>
