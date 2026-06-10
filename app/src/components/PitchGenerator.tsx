@@ -25,12 +25,6 @@ interface RevisionEntry {
   instruction: string
 }
 
-interface ConfirmedExample {
-  artist_name: string
-  raw_notes: string | null
-  confirmed_notes: string | null
-}
-
 // ---------- Helpers ----------
 
 function fmtNum(n: number | null): string {
@@ -157,15 +151,7 @@ export default function PitchGenerator() {
     setGenerating(true)
 
     try {
-      const { data: exData } = await supabase
-        .from('confirmed_pitches')
-        .select('artist_name, raw_notes, confirmed_notes')
-        .order('confirmed_at', { ascending: false })
-        .limit(5)
-
-      const examples = (exData ?? []) as ConfirmedExample[]
-
-      let system = `You are polishing A&R scouting notes into a brief, direct paragraph for a VP of A&R at Atlantic Records.
+      const system = `You are polishing A&R scouting notes into a brief, direct paragraph for a VP of A&R at Atlantic Records.
 
 Rules:
 - 3-5 sentences max
@@ -175,13 +161,6 @@ Rules:
 - Tone: direct, peer-to-peer, no overselling
 - Never start with the artist name
 - Return ONLY the polished paragraph, no preamble, no explanation`
-
-      if (examples.length > 0) {
-        system += `\n\nYou also have confirmed examples of notes Cyrus has approved. Match this tone and style:\n\n`
-        system += examples.map(ex =>
-          `Artist: ${ex.artist_name}\nRaw: ${ex.raw_notes ?? ''}\nApproved: ${ex.confirmed_notes ?? ''}`
-        ).join('\n---\n')
-      }
 
       const polishedArtists = await Promise.all(
         selectedArtists.map(async (a) => {
@@ -389,16 +368,34 @@ Best,
         <div style={{ marginBottom: 28 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', ...SL }}>
             <span>Draft</span>
-            {userEditedEmail && (
+            <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
+              {userEditedEmail && (
+                <span
+                  onClick={() => { setUserEditedEmail(false); setDraftOutdated(false); setEmailDraft(generateEmail(selectedArtists)) }}
+                  style={{ fontSize: 11, color: '#666666', cursor: 'pointer', letterSpacing: '0.02em', fontWeight: 400, textTransform: 'none' }}
+                  onMouseEnter={e => (e.currentTarget.style.color = '#AAAAAA')}
+                  onMouseLeave={e => (e.currentTarget.style.color = '#666666')}
+                >
+                  Reset to generated
+                </span>
+              )}
               <span
-                onClick={() => { setUserEditedEmail(false); setDraftOutdated(false); setEmailDraft(generateEmail(selectedArtists)) }}
+                onClick={() => {
+                  setDraftGenerated(false)
+                  setEmailDraft('')
+                  setSelectedArtists([])
+                  setRevisions([])
+                  setRevisionInput('')
+                  setUserEditedEmail(false)
+                  setDraftOutdated(false)
+                }}
                 style={{ fontSize: 11, color: '#666666', cursor: 'pointer', letterSpacing: '0.02em', fontWeight: 400, textTransform: 'none' }}
                 onMouseEnter={e => (e.currentTarget.style.color = '#AAAAAA')}
                 onMouseLeave={e => (e.currentTarget.style.color = '#666666')}
               >
-                Reset to generated
+                Start over
               </span>
-            )}
+            </div>
           </div>
           {draftOutdated && (
             <div style={{ marginBottom: 10, fontSize: 12, color: '#666666' }}>
