@@ -68,7 +68,7 @@ export default function App() {
 
       {/* Tab bar */}
       <nav style={{ display: 'flex', borderBottom: '1px solid #2A2A2A', background: '#141414', padding: '0 20px' }}>
-        {(['pipeline', 'onboarding'] as Tab[]).map(t => (
+        {(['pipeline', 'onboarding', 'pitch'] as Tab[]).map(t => (
           <button
             key={t}
             onClick={() => setTab(t)}
