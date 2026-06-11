@@ -97,7 +97,7 @@ export default function DailyCheckView() {
 
         {/* ── Playlists section ── */}
         <div style={{ marginBottom: 40 }}>
-          <div style={{ display: 'flex', alignItems: 'center', marginBottom: 16 }}>
+          <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
             <span style={{
               fontSize: 10, fontWeight: 600, letterSpacing: '0.1em',
               textTransform: 'uppercase', color: '#444444',
@@ -114,13 +114,20 @@ export default function DailyCheckView() {
             </button>
           </div>
 
+          {/* Column label */}
+          <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '0 12px 6px' }}>
+            <span style={{ fontSize: 10, fontWeight: 500, letterSpacing: '0.06em', textTransform: 'uppercase', color: '#333333' }}>
+              New Since Last Check
+            </span>
+          </div>
+
           {playlists.length === 0 ? (
             <p style={{ color: '#333333', fontSize: 13 }}>No playlists tracked yet.</p>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
               {playlists.map(p => {
                 const count = newCounts[p.id]
-                const isChecked = count === 0
+                const isChecked = count != null && count === 0
                 return (
                   <div key={p.id}>
                     <div style={{
@@ -150,7 +157,9 @@ export default function DailyCheckView() {
                         <span style={{ color: '#444444', fontSize: 11, flexShrink: 0 }}>Refreshing…</span>
                       ) : (
                         <>
-                          {count != null && count > 0 && (
+                          {count == null ? (
+                            <span style={{ color: '#444444', fontSize: 12, flexShrink: 0, minWidth: 28, textAlign: 'center' }}>…</span>
+                          ) : count > 0 ? (
                             <span
                               onClick={() => toggleExpand(p)}
                               style={{
@@ -163,6 +172,8 @@ export default function DailyCheckView() {
                             >
                               {count} new
                             </span>
+                          ) : (
+                            <span style={{ color: '#444444', fontSize: 13, flexShrink: 0, minWidth: 28, textAlign: 'center' }}>—</span>
                           )}
                           <button
                             className="btn-ghost"
@@ -253,12 +264,19 @@ export default function DailyCheckView() {
                       href={c.spotify_url}
                       target="_blank"
                       rel="noreferrer"
-                      style={{ color: '#1DB954', fontSize: 12, textDecoration: 'none', flexShrink: 0 }}
-                      onMouseEnter={e => (e.currentTarget.style.filter = 'brightness(1.2)')}
-                      onMouseLeave={e => (e.currentTarget.style.filter = '')}
+                      style={{
+                        display: 'inline-flex', alignItems: 'center', gap: 4,
+                        height: 32, padding: '0 12px',
+                        background: '#1A1A1A', border: '1px solid #2A2A2A',
+                        borderRadius: 16, color: '#1DB954',
+                        fontSize: 12, fontWeight: 500, textDecoration: 'none',
+                        flexShrink: 0, letterSpacing: '0.02em', whiteSpace: 'nowrap',
+                      }}
+                      onMouseEnter={e => (e.currentTarget.style.borderColor = '#1DB954')}
+                      onMouseLeave={e => (e.currentTarget.style.borderColor = '#2A2A2A')}
                       title="Open Spotify profile"
                     >
-                      ↗
+                      Spotify ↗
                     </a>
                   )}
 

@@ -2,19 +2,15 @@ import { useState } from 'react'
 import PipelineView from './components/PipelineView'
 import OnboardingView from './components/OnboardingView'
 import PitchGenerator from './components/PitchGenerator'
-import PlaylistTrackerView from './components/PlaylistTrackerView'
-import ContactsView from './components/ContactsView'
 import DailyCheckView from './components/DailyCheckView'
 import { DashboardProvider } from './context/DashboardContext'
 
-type Tab = 'pipeline' | 'onboarding' | 'pitch' | 'playlist' | 'contacts' | 'daily'
+type Tab = 'pipeline' | 'onboarding' | 'pitch' | 'daily'
 
 const TAB_LABELS: Record<Tab, string> = {
   pipeline: 'Pipeline',
   onboarding: 'Onboarding Checklist',
   pitch: 'Pitch Generator',
-  playlist: 'Playlist Tracker',
-  contacts: 'Contacts',
   daily: 'Daily Check',
 }
 
@@ -81,7 +77,7 @@ export default function App() {
 
       {/* Tab bar */}
       <nav style={{ display: 'flex', borderBottom: '1px solid #2A2A2A', background: '#141414', padding: '0 20px' }}>
-        {(['pipeline', 'onboarding', 'pitch', 'playlist', 'contacts', 'daily'] as Tab[]).map(t => (
+        {(['pipeline', 'onboarding', 'pitch', 'daily'] as Tab[]).map(t => (
           <button
             key={t}
             onClick={() => setTab(t)}
@@ -109,8 +105,6 @@ export default function App() {
           {tab === 'pipeline' && <PipelineView month={month} />}
           {tab === 'onboarding' && <OnboardingView month={month} />}
           {tab === 'pitch' && <PitchGenerator />}
-          {tab === 'playlist' && <PlaylistTrackerView />}
-          {tab === 'contacts' && <ContactsView />}
           {tab === 'daily' && <DailyCheckView />}
         </main>
       </DashboardProvider>
