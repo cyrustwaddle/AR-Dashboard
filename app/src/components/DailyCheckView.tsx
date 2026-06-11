@@ -139,9 +139,7 @@ export default function DailyCheckView() {
                       transition: 'opacity 0.15s ease',
                     }}>
                       <a
-                        href={`https://open.spotify.com/playlist/${p.playlist_id}`}
-                        target="_blank"
-                        rel="noreferrer"
+                        href={`spotify:playlist:${p.playlist_id}`}
                         style={{ color: '#F0F0F0', fontSize: 13, fontWeight: 500, textDecoration: 'none', flex: 1, minWidth: 0 }}
                         onMouseEnter={e => (e.currentTarget.style.textDecoration = 'underline')}
                         onMouseLeave={e => (e.currentTarget.style.textDecoration = 'none')}
@@ -261,9 +259,7 @@ export default function DailyCheckView() {
 
                   {c.spotify_url && (
                     <a
-                      href={c.spotify_url}
-                      target="_blank"
-                      rel="noreferrer"
+                      href={`spotify:user:${c.spotify_url.split('/').pop()?.split('?')[0] ?? ''}`}
                       style={{
                         display: 'inline-flex', alignItems: 'center', gap: 4,
                         height: 32, padding: '0 12px',
