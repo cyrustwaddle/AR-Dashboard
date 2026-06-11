@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 import type { Playlist, PlaylistTrack, Contact } from '../types'
 
@@ -14,6 +14,7 @@ export default function DailyCheckView() {
   const [expanded, setExpanded] = useState<Record<string, boolean>>({})
   const [refreshing, setRefreshing] = useState<Record<string, boolean>>({})
   const [checkedPlaylists, setCheckedPlaylists] = useState<Record<string, boolean>>({})
+  const orderRef = useRef<string[]>([])
   const [spotifyToken, setSpotifyToken] = useState<string | null>(null)
   const [tokenExpiry, setTokenExpiry] = useState(0)
 
@@ -25,8 +26,14 @@ export default function DailyCheckView() {
   async function loadPlaylists() {
     const { data } = await supabase.from('tracked_playlists').select('*').order('created_at', { ascending: true })
     if (data) {
-      setPlaylists(data)
-      await loadTrackCounts(data)
+      if (orderRef.current.length === 0) {
+        orderRef.current = data.map(p => p.playlist_id)
+      }
+      const sorted = [...data].sort((a, b) =>
+        orderRef.current.indexOf(a.playlist_id) - orderRef.current.indexOf(b.playlist_id)
+      )
+      setPlaylists(sorted)
+      await loadTrackCounts(sorted)
     }
   }
 
@@ -231,14 +238,26 @@ export default function DailyCheckView() {
                     <span style={{ color: '#444', fontSize: 13 }}>—</span>
                   )}
                 </div>
-                {/* Checked checkbox */}
+                {/* Checked button */}
                 <div style={{ width: 110, textAlign: 'right' }}>
-                  <input
-                    type="checkbox"
-                    checked={!!checkedPlaylists[pl.playlist_id]}
-                    onChange={() => markChecked(pl.playlist_id)}
-                    style={{ width: 16, height: 16, cursor: 'pointer', accentColor: '#E0142A' }}
-                  />
+                  {checkedPlaylists[pl.playlist_id] ? (
+                    <button style={{
+                      background: 'transparent', border: '1px solid #444', color: '#444',
+                      borderRadius: 6, padding: '4px 12px', fontSize: 11, fontWeight: 600,
+                      letterSpacing: '0.06em', cursor: 'default', boxShadow: 'none',
+                      transition: 'all 0.15s ease',
+                    }}>✓ Done</button>
+                  ) : (
+                    <button
+                      onClick={() => markChecked(pl.playlist_id)}
+                      style={{
+                        background: 'transparent', border: '1px solid #E0142A', color: '#E0142A',
+                        borderRadius: 6, padding: '4px 12px', fontSize: 11, fontWeight: 600,
+                        letterSpacing: '0.06em', cursor: 'pointer',
+                        boxShadow: '0 0 6px rgba(224, 20, 42, 0.4)', transition: 'all 0.15s ease',
+                      }}
+                    >Checked?</button>
+                  )}
                 </div>
               </div>
               {/* Expanded track list */}
@@ -286,13 +305,26 @@ export default function DailyCheckView() {
                 }}
               >Spotify ↗</a>
             )}
-            {/* Checkbox */}
-            <input
-              type="checkbox"
-              checked={c.checked}
-              onChange={() => toggleContact(c.id, c.checked)}
-              style={{ width: 16, height: 16, cursor: 'pointer', accentColor: '#E0142A' }}
-            />
+            {/* Checked button */}
+            {c.checked ? (
+              <button
+                onClick={() => toggleContact(c.id, c.checked)}
+                style={{
+                  background: 'transparent', border: '1px solid #444', color: '#444',
+                  borderRadius: 6, padding: '4px 12px', fontSize: 11, fontWeight: 600,
+                  letterSpacing: '0.06em', cursor: 'default', boxShadow: 'none',
+                  transition: 'all 0.15s ease',
+                }}>✓ Done</button>
+            ) : (
+              <button
+                onClick={() => toggleContact(c.id, c.checked)}
+                style={{
+                  background: 'transparent', border: '1px solid #E0142A', color: '#E0142A',
+                  borderRadius: 6, padding: '4px 12px', fontSize: 11, fontWeight: 600,
+                  letterSpacing: '0.06em', cursor: 'pointer',
+                  boxShadow: '0 0 6px rgba(224, 20, 42, 0.4)', transition: 'all 0.15s ease',
+                }}>Checked?</button>
+            )}
           </div>
         ))}
       </div>
