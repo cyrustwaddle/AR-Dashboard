@@ -54,16 +54,14 @@ export default function DailyCheckView() {
 
   async function markChecked(playlist_id: string) {
     const now = new Date().toISOString()
-    const { error } = await supabase
+    console.log('[markChecked] firing for', playlist_id)
+    const { data, error } = await supabase
       .from('tracked_playlists')
       .update({ last_checked_at: now })
       .eq('playlist_id', playlist_id)
-    if (error) { console.error('markChecked error:', error); return }
-    setPlaylists(prev => prev.map(p =>
-      p.playlist_id === playlist_id ? { ...p, last_checked_at: now } : p
-    ))
-    setTracks(prev => ({ ...prev, [playlist_id]: [] }))
-    setExpanded(prev => ({ ...prev, [playlist_id]: false }))
+      .select()
+    console.log('[markChecked] result', data, error)
+    await loadPlaylists()
   }
 
   async function toggleContact(id: string, current: boolean) {
@@ -233,12 +231,18 @@ export default function DailyCheckView() {
                 </div>
                 {/* Checked button */}
                 <div style={{ width: 110, textAlign: 'right' }}>
-                  <button onClick={() => markChecked(pl.playlist_id)} style={{
-                    background: '#1A1A1A', border: '1px solid #2A2A2A',
-                    color: '#F0F0F0', borderRadius: 6,
-                    padding: '4px 12px', fontSize: 11, fontWeight: 500,
-                    cursor: 'pointer', letterSpacing: '0.04em',
-                  }}>✓ Checked</button>
+                  <button
+                    onClick={async (e) => {
+                      e.stopPropagation()
+                      await markChecked(pl.playlist_id)
+                    }}
+                    style={{
+                      background: '#1A1A1A', border: '1px solid #2A2A2A',
+                      color: '#F0F0F0', borderRadius: 6,
+                      padding: '4px 12px', fontSize: 11, fontWeight: 500,
+                      cursor: 'pointer', letterSpacing: '0.04em'
+                    }}
+                  >✓ Checked</button>
                 </div>
               </div>
               {/* Expanded track list */}
