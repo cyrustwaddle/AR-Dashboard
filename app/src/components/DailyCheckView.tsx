@@ -26,6 +26,7 @@ export default function DailyCheckView() {
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [expandedTracks, setExpandedTracks] = useState<PlaylistTrack[]>([])
   const [loadingExpand, setLoadingExpand] = useState(false)
+  const [checking, setChecking] = useState<Set<string>>(new Set())
 
   useEffect(() => { loadAll() }, [])
 
@@ -36,7 +37,9 @@ export default function DailyCheckView() {
   }
 
   async function handleMarkChecked(playlist: TrackedPlaylist) {
+    setChecking(s => new Set(s).add(playlist.id))
     await markChecked(playlist)
+    setChecking(s => { const n = new Set(s); n.delete(playlist.id); return n })
     if (expandedId === playlist.id) { setExpandedId(null); setExpandedTracks([]) }
   }
 
@@ -97,6 +100,7 @@ export default function DailyCheckView() {
 
         {/* ── Playlists section ── */}
         <div style={{ marginBottom: 40 }}>
+          {/* Section header + Refresh All */}
           <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
             <span style={{
               fontSize: 10, fontWeight: 600, letterSpacing: '0.1em',
@@ -114,11 +118,19 @@ export default function DailyCheckView() {
             </button>
           </div>
 
-          {/* Column label */}
-          <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '0 12px 6px' }}>
-            <span style={{ fontSize: 10, fontWeight: 500, letterSpacing: '0.06em', textTransform: 'uppercase', color: '#333333' }}>
+          {/* Column header row — grid must match row grid below */}
+          <div style={{
+            display: 'grid', gridTemplateColumns: '1fr 140px 92px',
+            gap: 12, padding: '0 12px 6px',
+          }}>
+            <span />
+            <span style={{
+              textAlign: 'center', fontSize: 10, fontWeight: 500,
+              letterSpacing: '0.06em', textTransform: 'uppercase', color: '#555555',
+            }}>
               New Since Last Check
             </span>
+            <span />
           </div>
 
           {playlists.length === 0 ? (
@@ -128,60 +140,63 @@ export default function DailyCheckView() {
               {playlists.map(p => {
                 const count = newCounts[p.id]
                 const isChecked = count != null && count === 0
+                const isChecking = checking.has(p.id)
                 return (
                   <div key={p.id}>
                     <div style={{
-                      display: 'flex', alignItems: 'center', gap: 12,
+                      display: 'grid', gridTemplateColumns: '1fr 140px 92px',
+                      alignItems: 'center', gap: 12,
                       padding: '10px 12px',
                       background: '#181818',
                       borderRadius: expandedId === p.id ? '2px 2px 0 0' : 2,
                       opacity: isChecked ? 0.35 : 1,
                       transition: 'opacity 0.15s ease',
                     }}>
+                      {/* Name */}
                       <a
                         href={`spotify:playlist:${p.playlist_id}`}
-                        style={{ color: '#F0F0F0', fontSize: 13, fontWeight: 500, textDecoration: 'none', flex: 1, minWidth: 0 }}
+                        style={{ color: '#F0F0F0', fontSize: 13, fontWeight: 500, textDecoration: 'none', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
                         onMouseEnter={e => (e.currentTarget.style.textDecoration = 'underline')}
                         onMouseLeave={e => (e.currentTarget.style.textDecoration = 'none')}
                       >
                         {p.name}
                       </a>
 
-                      {rowErrors[p.id] && (
-                        <span style={{ color: '#E0142A', fontSize: 11 }}>{rowErrors[p.id]}</span>
-                      )}
-
-                      {refreshing[p.id] ? (
-                        <span style={{ color: '#444444', fontSize: 11, flexShrink: 0 }}>Refreshing…</span>
-                      ) : (
-                        <>
-                          {count == null ? (
-                            <span style={{ color: '#444444', fontSize: 12, flexShrink: 0, minWidth: 28, textAlign: 'center' }}>…</span>
-                          ) : count > 0 ? (
-                            <span
-                              onClick={() => toggleExpand(p)}
-                              style={{
-                                background: '#2A0A0E', color: '#E0142A',
-                                fontSize: 11, fontWeight: 700,
-                                padding: '2px 7px', borderRadius: 10,
-                                cursor: 'pointer', flexShrink: 0, letterSpacing: '0.02em',
-                              }}
-                              title="Click to see new tracks"
-                            >
-                              {count} new
-                            </span>
-                          ) : (
-                            <span style={{ color: '#444444', fontSize: 13, flexShrink: 0, minWidth: 28, textAlign: 'center' }}>—</span>
-                          )}
-                          <button
-                            className="btn-ghost"
-                            onClick={() => handleMarkChecked(p)}
-                            style={{ fontSize: 11, padding: '3px 9px', flexShrink: 0 }}
+                      {/* Count — centered in column */}
+                      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                        {refreshing[p.id] ? (
+                          <span style={{ color: '#555555', fontSize: 12 }}>…</span>
+                        ) : rowErrors[p.id] ? (
+                          <span style={{ color: '#E0142A', fontSize: 11 }}>{rowErrors[p.id]}</span>
+                        ) : count == null ? (
+                          <span style={{ color: '#555555', fontSize: 13 }}>…</span>
+                        ) : count > 0 ? (
+                          <span
+                            onClick={() => toggleExpand(p)}
+                            style={{
+                              background: '#2A0A0E', color: '#E0142A',
+                              fontSize: 12, fontWeight: 700,
+                              padding: '3px 10px', borderRadius: 10,
+                              cursor: 'pointer', letterSpacing: '0.02em',
+                            }}
+                            title="Click to see new tracks"
                           >
-                            ✓ Checked
-                          </button>
-                        </>
-                      )}
+                            {count} new
+                          </span>
+                        ) : (
+                          <span style={{ color: '#888888', fontSize: 14, fontWeight: 300 }}>—</span>
+                        )}
+                      </div>
+
+                      {/* ✓ Checked button */}
+                      <button
+                        className="btn-ghost"
+                        onClick={() => handleMarkChecked(p)}
+                        disabled={isChecking || !!refreshing[p.id]}
+                        style={{ fontSize: 11, padding: '3px 9px', opacity: isChecking ? 0.5 : 1 }}
+                      >
+                        {isChecking ? '…' : '✓ Checked'}
+                      </button>
                     </div>
 
                     {/* Inline track expansion */}

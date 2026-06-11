@@ -187,8 +187,14 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
 
   async function markChecked(playlist: TrackedPlaylist) {
     const now = new Date().toISOString()
-    const { error } = await supabase.from('tracked_playlists').update({ last_checked_at: now }).eq('id', playlist.id)
-    if (error) { alert(`Failed: ${error.message}`); return }
+    const { error } = await supabase
+      .from('tracked_playlists')
+      .update({ last_checked_at: now })
+      .eq('playlist_id', playlist.playlist_id)
+    if (error) {
+      console.error('markChecked failed:', error.message, error)
+      return
+    }
     setPlaylists(prev => prev.map(p => p.id === playlist.id ? { ...p, last_checked_at: now } : p))
     setNewCounts(c => ({ ...c, [playlist.id]: 0 }))
   }
