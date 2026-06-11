@@ -1,14 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { supabase } from '../lib/supabase'
-
-interface Contact {
-  id: string
-  name: string
-  company: string | null
-  spotify_url: string | null
-  checked: boolean
-  created_at: string
-}
+import { useDashboard } from '../context/DashboardContext'
+import type { Contact } from '../context/DashboardContext'
 
 type ContactData = Omit<Contact, 'id' | 'created_at'>
 
@@ -24,30 +17,10 @@ const TD: React.CSSProperties = {
 }
 
 export default function ContactsView() {
-  const [contacts, setContacts] = useState<Contact[]>([])
-  const [loading, setLoading] = useState(true)
+  const { contacts, setContacts, loaded, toggleContactChecked } = useDashboard()
   const [search, setSearch] = useState('')
   const [showAddModal, setShowAddModal] = useState(false)
   const [editContact, setEditContact] = useState<Contact | null>(null)
-
-  useEffect(() => { loadContacts() }, [])
-
-  async function loadContacts() {
-    setLoading(true)
-    const { data } = await supabase.from('contacts').select('*').order('name')
-    setContacts((data ?? []) as Contact[])
-    setLoading(false)
-  }
-
-  async function toggleChecked(contact: Contact) {
-    const newVal = !contact.checked
-    setContacts(prev => prev.map(c => c.id === contact.id ? { ...c, checked: newVal } : c))
-    const { error } = await supabase.from('contacts').update({ checked: newVal }).eq('id', contact.id)
-    if (error) {
-      setContacts(prev => prev.map(c => c.id === contact.id ? { ...c, checked: contact.checked } : c))
-      alert(`Failed to update: ${error.message}`)
-    }
-  }
 
   async function deleteContact(id: string) {
     if (!window.confirm('Delete this contact? This cannot be undone.')) return
@@ -75,7 +48,7 @@ export default function ContactsView() {
       })
     : contacts
 
-  if (loading) return <p style={{ padding: 24, color: '#444444' }}>Loading…</p>
+  if (!loaded) return <p style={{ padding: 24, color: '#444444' }}>Loading…</p>
 
   return (
     <div>
@@ -140,7 +113,7 @@ export default function ContactsView() {
                     type="checkbox"
                     className="ben-check"
                     checked={c.checked}
-                    onChange={() => toggleChecked(c)}
+                    onChange={() => toggleContactChecked(c)}
                   />
                 </td>
                 <td style={{ ...TD, textAlign: 'right' }}>
