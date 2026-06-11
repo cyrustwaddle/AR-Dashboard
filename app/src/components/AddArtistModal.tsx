@@ -259,7 +259,7 @@ export default function AddArtistModal({ onClose, onSubmit }: Props) {
             <div style={col}><Field label="Stage">
               <Sel<Stage> value={form.stage} opts={STAGES} onChange={v => set('stage', v)} />
             </Field></div>
-            <div style={col}><Field label="Ben-Sendable">
+            <div style={col}><Field label="Push Forward?">
               <div style={{ paddingTop: 6 }}>
                 <input
                   type="checkbox"

@@ -281,7 +281,7 @@ export default function PipelineView({ month }: Props) {
               <th style={{ ...TH, borderLeft: '1px solid #2A2A2A' }}>Followers</th>
 
               <th style={{ ...TH, borderLeft: '1px solid #2A2A2A' }}>Stage</th>
-              <th style={{ ...TH, textAlign: 'center' }}>Ben?</th>
+              <th style={{ ...TH, textAlign: 'center' }}>Push Forward?</th>
               <th style={TH}>Last Contact</th>
               <th style={TH}>Next Action</th>
               <th style={TH}>Next Action Date</th>
@@ -432,7 +432,7 @@ export default function PipelineView({ month }: Props) {
                             <DetailField label="Source">{a.source || '—'}</DetailField>
                             <DetailField label="Stage"><StagePill stage={a.stage} /></DetailField>
                             <DetailField label="Date Added">{a.date_added || '—'}</DetailField>
-                            <DetailField label="Ben-Sendable">{a.ben_sendable ? 'Yes' : 'No'}</DetailField>
+                            <DetailField label="Push Forward?">{a.ben_sendable ? 'Yes' : 'No'}</DetailField>
                             <DetailField label="TikTok">
                               {a.tiktok_url ? <LinkPill href={a.tiktok_url} label="TikTok" /> : '—'}
                             </DetailField>
