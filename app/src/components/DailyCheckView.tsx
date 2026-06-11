@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useDashboard } from '../context/DashboardContext'
 import type { TrackedPlaylist, PlaylistTrack } from '../context/DashboardContext'
@@ -16,7 +16,7 @@ export default function DailyCheckView() {
   const {
     playlists, contacts,
     newCounts, refreshing, rowErrors,
-    loaded, loadAll,
+    loaded,
     refreshAll, markChecked,
     toggleContactChecked,
   } = useDashboard()
@@ -27,8 +27,6 @@ export default function DailyCheckView() {
   const [expandedTracks, setExpandedTracks] = useState<PlaylistTrack[]>([])
   const [loadingExpand, setLoadingExpand] = useState(false)
   const [checking, setChecking] = useState<Set<string>>(new Set())
-
-  useEffect(() => { loadAll() }, [])
 
   function switchDay(d: Day) {
     if (d === activeDay) return
@@ -145,8 +143,7 @@ export default function DailyCheckView() {
                     <div style={{
                       display: 'flex', alignItems: 'center', gap: 12,
                       padding: '10px 12px',
-                      background: '#181818',
-                      borderRadius: expandedId === p.id ? '2px 2px 0 0' : 2,
+                      background: '#181818', borderRadius: expandedId === p.id ? '2px 2px 0 0' : 2,
                       opacity: isChecked ? 0.35 : 1,
                       transition: 'opacity 0.15s ease',
                     }}>
