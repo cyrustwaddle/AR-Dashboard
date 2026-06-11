@@ -3,7 +3,6 @@ import PipelineView from './components/PipelineView'
 import OnboardingView from './components/OnboardingView'
 import PitchGenerator from './components/PitchGenerator'
 import DailyCheckView from './components/DailyCheckView'
-import { DashboardProvider } from './context/DashboardContext'
 
 type Tab = 'pipeline' | 'onboarding' | 'pitch' | 'daily'
 
@@ -46,33 +45,10 @@ export default function App() {
         borderBottom: '1px solid #2A2A2A',
         background: '#0F0808',
       }}>
-        {/* Logo */}
         <span style={{ userSelect: 'none', flexShrink: 0 }}>
           <span style={{ fontWeight: 700, fontSize: 13, letterSpacing: '0.08em', color: '#E0142A', textTransform: 'uppercase' }}>A&amp;R</span>
           <span style={{ fontWeight: 300, fontSize: 13, letterSpacing: '0.08em', color: '#F0F0F0', textTransform: 'uppercase' }}>{' '}DASHBOARD</span>
         </span>
-
-        {/* Month nav — centered */}
-        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-          <button
-            style={{ background: 'none', border: 'none', color: prevHover ? '#F0F0F0' : '#888888', fontSize: 18, padding: '0 6px', lineHeight: 1, borderRadius: 0 }}
-            onMouseEnter={() => setPrevHover(true)}
-            onMouseLeave={() => setPrevHover(false)}
-            onClick={() => setMonth(m => addMonths(m, -1))}
-          >‹</button>
-          <span style={{ color: '#F0F0F0', fontWeight: 500, fontSize: 13, minWidth: 130, textAlign: 'center', letterSpacing: '0.02em' }}>
-            {formatMonthLabel(month)}
-          </span>
-          <button
-            style={{ background: 'none', border: 'none', color: nextHover ? '#F0F0F0' : '#888888', fontSize: 18, padding: '0 6px', lineHeight: 1, borderRadius: 0 }}
-            onMouseEnter={() => setNextHover(true)}
-            onMouseLeave={() => setNextHover(false)}
-            onClick={() => setMonth(m => addMonths(m, 1))}
-          >›</button>
-        </div>
-
-        {/* Right spacer to balance logo */}
-        <span style={{ flexShrink: 0, minWidth: 100 }} />
       </header>
 
       {/* Tab bar */}
@@ -100,14 +76,34 @@ export default function App() {
         ))}
       </nav>
 
-      <DashboardProvider>
-        <main>
-          {tab === 'pipeline' && <PipelineView month={month} />}
-          {tab === 'onboarding' && <OnboardingView month={month} />}
-          {tab === 'pitch' && <PitchGenerator />}
-          {tab === 'daily' && <DailyCheckView />}
-        </main>
-      </DashboardProvider>
+      <main>
+        {tab === 'pipeline' && (
+          <>
+            {/* Month nav — only shown for Pipeline tab */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '12px 20px', borderBottom: '1px solid #2A2A2A' }}>
+              <button
+                style={{ background: 'none', border: 'none', color: prevHover ? '#F0F0F0' : '#888888', fontSize: 18, padding: '0 6px', lineHeight: 1, borderRadius: 0, cursor: 'pointer' }}
+                onMouseEnter={() => setPrevHover(true)}
+                onMouseLeave={() => setPrevHover(false)}
+                onClick={() => setMonth(m => addMonths(m, -1))}
+              >‹</button>
+              <span style={{ color: '#F0F0F0', fontWeight: 500, fontSize: 13, minWidth: 130, textAlign: 'center', letterSpacing: '0.02em' }}>
+                {formatMonthLabel(month)}
+              </span>
+              <button
+                style={{ background: 'none', border: 'none', color: nextHover ? '#F0F0F0' : '#888888', fontSize: 18, padding: '0 6px', lineHeight: 1, borderRadius: 0, cursor: 'pointer' }}
+                onMouseEnter={() => setNextHover(true)}
+                onMouseLeave={() => setNextHover(false)}
+                onClick={() => setMonth(m => addMonths(m, 1))}
+              >›</button>
+            </div>
+            <PipelineView month={month} />
+          </>
+        )}
+        {tab === 'onboarding' && <OnboardingView month={month} />}
+        {tab === 'pitch' && <PitchGenerator />}
+        {tab === 'daily' && <DailyCheckView />}
+      </main>
     </div>
   )
 }
