@@ -186,17 +186,28 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
   }
 
   async function markChecked(playlist: TrackedPlaylist) {
+    console.log('[markChecked] handler fired — playlist_id:', playlist.playlist_id, '| id:', playlist.id)
     const now = new Date().toISOString()
-    const { error } = await supabase
+
+    // Optimistic update first so the UI responds immediately
+    setPlaylists(prev => prev.map(p => p.id === playlist.id ? { ...p, last_checked_at: now } : p))
+    setNewCounts(c => ({ ...c, [playlist.id]: 0 }))
+
+    console.log('[markChecked] writing to supabase with playlist_id:', playlist.playlist_id)
+    const { data, error } = await supabase
       .from('tracked_playlists')
       .update({ last_checked_at: now })
       .eq('playlist_id', playlist.playlist_id)
+      .select()
+    console.log('[markChecked] supabase response — data:', data, '| error:', error)
+
     if (error) {
-      console.error('markChecked failed:', error.message, error)
-      return
+      console.error('[markChecked] DB write failed, reverting optimistic update:', error.message, error)
+      setPlaylists(prev => prev.map(p => p.id === playlist.id ? { ...p, last_checked_at: playlist.last_checked_at } : p))
+      setNewCounts(c => ({ ...c, [playlist.id]: undefined }))
+    } else if (!data || data.length === 0) {
+      console.warn('[markChecked] update succeeded but matched 0 rows — playlist_id may not exist in DB:', playlist.playlist_id)
     }
-    setPlaylists(prev => prev.map(p => p.id === playlist.id ? { ...p, last_checked_at: now } : p))
-    setNewCounts(c => ({ ...c, [playlist.id]: 0 }))
   }
 
   async function toggleContactChecked(contact: Contact) {

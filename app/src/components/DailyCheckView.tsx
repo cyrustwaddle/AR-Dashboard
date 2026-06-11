@@ -118,19 +118,17 @@ export default function DailyCheckView() {
             </button>
           </div>
 
-          {/* Column header row — grid must match row grid below */}
-          <div style={{
-            display: 'grid', gridTemplateColumns: '1fr 140px 92px',
-            gap: 12, padding: '0 12px 6px',
-          }}>
-            <span />
+          {/* Column header — flex widths must mirror the data rows below */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '0 12px 6px' }}>
+            <span style={{ flex: 1 }} />
             <span style={{
-              textAlign: 'center', fontSize: 10, fontWeight: 500,
-              letterSpacing: '0.06em', textTransform: 'uppercase', color: '#555555',
+              flexShrink: 0, width: 96, textAlign: 'center',
+              fontSize: 10, fontWeight: 500, letterSpacing: '0.06em',
+              textTransform: 'uppercase', color: '#555555',
             }}>
               New Since Last Check
             </span>
-            <span />
+            <span style={{ flexShrink: 0, width: 84 }} />
           </div>
 
           {playlists.length === 0 ? (
@@ -143,27 +141,29 @@ export default function DailyCheckView() {
                 const isChecking = checking.has(p.id)
                 return (
                   <div key={p.id}>
+                    {/* Same structure as contact rows: flex, same padding/gap/bg */}
                     <div style={{
-                      display: 'grid', gridTemplateColumns: '1fr 140px 92px',
-                      alignItems: 'center', gap: 12,
+                      display: 'flex', alignItems: 'center', gap: 12,
                       padding: '10px 12px',
                       background: '#181818',
                       borderRadius: expandedId === p.id ? '2px 2px 0 0' : 2,
                       opacity: isChecked ? 0.35 : 1,
                       transition: 'opacity 0.15s ease',
                     }}>
-                      {/* Name */}
-                      <a
-                        href={`spotify:playlist:${p.playlist_id}`}
-                        style={{ color: '#F0F0F0', fontSize: 13, fontWeight: 500, textDecoration: 'none', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
-                        onMouseEnter={e => (e.currentTarget.style.textDecoration = 'underline')}
-                        onMouseLeave={e => (e.currentTarget.style.textDecoration = 'none')}
-                      >
-                        {p.name}
-                      </a>
+                      {/* Name — flex: 1 like contact name */}
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <a
+                          href={`spotify:playlist:${p.playlist_id}`}
+                          style={{ color: '#F0F0F0', fontSize: 13, fontWeight: 500, textDecoration: 'none', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                          onMouseEnter={e => (e.currentTarget.style.textDecoration = 'underline')}
+                          onMouseLeave={e => (e.currentTarget.style.textDecoration = 'none')}
+                        >
+                          {p.name}
+                        </a>
+                      </div>
 
-                      {/* Count — centered in column */}
-                      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                      {/* Count — fixed width, centered */}
+                      <div style={{ flexShrink: 0, width: 96, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
                         {refreshing[p.id] ? (
                           <span style={{ color: '#555555', fontSize: 12 }}>…</span>
                         ) : rowErrors[p.id] ? (
@@ -188,12 +188,12 @@ export default function DailyCheckView() {
                         )}
                       </div>
 
-                      {/* ✓ Checked button */}
+                      {/* ✓ Checked button — fixed width to match header spacer */}
                       <button
                         className="btn-ghost"
                         onClick={() => handleMarkChecked(p)}
                         disabled={isChecking || !!refreshing[p.id]}
-                        style={{ fontSize: 11, padding: '3px 9px', opacity: isChecking ? 0.5 : 1 }}
+                        style={{ flexShrink: 0, width: 84, fontSize: 11, padding: '3px 9px', opacity: isChecking ? 0.5 : 1 }}
                       >
                         {isChecking ? '…' : '✓ Checked'}
                       </button>
