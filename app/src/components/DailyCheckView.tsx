@@ -13,6 +13,7 @@ export default function DailyCheckView() {
   })
   const [expanded, setExpanded] = useState<Record<string, boolean>>({})
   const [refreshing, setRefreshing] = useState<Record<string, boolean>>({})
+  const [checkedPlaylists, setCheckedPlaylists] = useState<Record<string, boolean>>({})
   const [spotifyToken, setSpotifyToken] = useState<string | null>(null)
   const [tokenExpiry, setTokenExpiry] = useState(0)
 
@@ -61,6 +62,7 @@ export default function DailyCheckView() {
       .eq('playlist_id', playlist_id)
       .select()
     console.log('[markChecked] result', data, error)
+    if (!error) setCheckedPlaylists(prev => ({ ...prev, [playlist_id]: true }))
     await loadPlaylists()
   }
 
@@ -229,20 +231,14 @@ export default function DailyCheckView() {
                     <span style={{ color: '#444', fontSize: 13 }}>—</span>
                   )}
                 </div>
-                {/* Checked button */}
+                {/* Checked checkbox */}
                 <div style={{ width: 110, textAlign: 'right' }}>
-                  <button
-                    onClick={async (e) => {
-                      e.stopPropagation()
-                      await markChecked(pl.playlist_id)
-                    }}
-                    style={{
-                      background: '#1A1A1A', border: '1px solid #2A2A2A',
-                      color: '#F0F0F0', borderRadius: 6,
-                      padding: '4px 12px', fontSize: 11, fontWeight: 500,
-                      cursor: 'pointer', letterSpacing: '0.04em'
-                    }}
-                  >✓ Checked</button>
+                  <input
+                    type="checkbox"
+                    checked={!!checkedPlaylists[pl.playlist_id]}
+                    onChange={() => markChecked(pl.playlist_id)}
+                    style={{ width: 16, height: 16, cursor: 'pointer', accentColor: '#E0142A' }}
+                  />
                 </div>
               </div>
               {/* Expanded track list */}
