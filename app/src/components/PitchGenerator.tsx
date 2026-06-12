@@ -15,6 +15,7 @@ interface PitchArtist {
   instagram_url: string | null
   notes: string | null
   stage: string | null
+  ben_sendable: boolean | null
 }
 
 interface SelectedArtist extends PitchArtist {
@@ -113,8 +114,7 @@ export default function PitchGenerator() {
   useEffect(() => {
     supabase
       .from('artists')
-      .select('id, artist_name, genre_lane, spotify_monthly_listeners, tiktok_followers, tiktok_avg_views, tiktok_url, spotify_url, instagram_url, notes, stage')
-      .eq('ben_sendable', true)
+      .select('id, artist_name, genre_lane, spotify_monthly_listeners, tiktok_followers, tiktok_avg_views, tiktok_url, spotify_url, instagram_url, notes, stage, ben_sendable')
       .order('artist_name')
       .then(({ data }) => {
         setAllArtists((data ?? []) as PitchArtist[])
@@ -293,7 +293,7 @@ Best,
                 <div style={{ padding: '10px 12px', fontSize: 12, color: '#444444' }}>
                   {selectedArtists.length === allArtists.length && allArtists.length > 0
                     ? 'All artists selected'
-                    : 'No ben-sendable artists found'}
+                    : 'No pipeline artists found'}
                 </div>
               ) : (
                 availableArtists.map(a => (
@@ -310,6 +310,14 @@ Best,
                     onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
                   >
                     <span style={{ color: '#F0F0F0', fontWeight: 500 }}>{a.artist_name}</span>
+                    {a.ben_sendable && (
+                      <span style={{
+                        fontSize: 9, fontWeight: 600, letterSpacing: '0.07em',
+                        textTransform: 'uppercase', color: '#E0142A',
+                        border: '1px solid #E0142A', borderRadius: 2,
+                        padding: '1px 4px', lineHeight: 1.4, flexShrink: 0,
+                      }}>Ben</span>
+                    )}
                     {a.genre_lane && (
                       <span style={{ fontSize: 11, color: '#666666' }}>{a.genre_lane}</span>
                     )}
