@@ -1,9 +1,8 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import PipelineView from './components/PipelineView'
 import OnboardingView from './components/OnboardingView'
 import PitchGenerator from './components/PitchGenerator'
 import DailyCheckView from './components/DailyCheckView'
-import { handleCallback, isAuthenticated } from './lib/spotifyAuth'
 
 type Tab = 'pipeline' | 'onboarding' | 'pitch' | 'daily'
 
@@ -35,25 +34,6 @@ export default function App() {
   const [month, setMonth] = useState(currentMonthStr)
   const [prevHover, setPrevHover] = useState(false)
   const [nextHover, setNextHover] = useState(false)
-  const [spotifyConnected, setSpotifyConnected] = useState(() => isAuthenticated())
-
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search)
-    const code = params.get('code')
-    const state = params.get('state')
-    if (code && state) {
-      handleCallback(code, state)
-        .then(() => {
-          window.history.replaceState({}, '', '/')
-          setTab('daily')
-          setSpotifyConnected(true)
-        })
-        .catch(err => {
-          console.error('Spotify OAuth callback error:', err)
-          window.history.replaceState({}, '', '/')
-        })
-    }
-  }, [])
 
   return (
     <div style={{ fontFamily: "'Inter', sans-serif", minHeight: '100vh', background: '#141414' }}>
@@ -122,7 +102,7 @@ export default function App() {
         )}
         {tab === 'onboarding' && <OnboardingView month={month} />}
         {tab === 'pitch' && <PitchGenerator />}
-        {tab === 'daily' && <DailyCheckView spotifyConnected={spotifyConnected} />}
+        {tab === 'daily' && <DailyCheckView />}
       </main>
     </div>
   )
