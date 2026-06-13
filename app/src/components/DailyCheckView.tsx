@@ -1,8 +1,23 @@
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../lib/supabase'
+import { initiateAuth, getValidToken } from '../lib/spotifyAuth'
 import type { Playlist, PlaylistTrack, Contact } from '../types'
 
-export default function DailyCheckView() {
+interface TrackDetail {
+  name: string
+  artists: string
+}
+
+interface CheckResult {
+  count: number
+  tracks: TrackDetail[]
+}
+
+interface Props {
+  spotifyConnected: boolean
+}
+
+export default function DailyCheckView({ spotifyConnected }: Props) {
   const [playlists, setPlaylists] = useState<Playlist[]>([])
   const [tracks, setTracks] = useState<Record<string, PlaylistTrack[]>>({})
   const [contacts, setContacts] = useState<Contact[]>([])
@@ -15,10 +30,12 @@ export default function DailyCheckView() {
   const [refreshing, setRefreshing] = useState<Record<string, boolean>>({})
   const [checking, setChecking] = useState<Record<string, boolean>>({})
   const [rowErrors, setRowErrors] = useState<Record<string, string>>({})
-  const [deltaDisplay, setDeltaDisplay] = useState<Record<string, number | null>>({})
+  const [markedDone, setMarkedDone] = useState<Record<string, boolean>>({})
+  const [checkAllRunning, setCheckAllRunning] = useState(false)
+  const [checkAllResults, setCheckAllResults] = useState<Record<string, CheckResult>>({})
+  const [checkAllErrors, setCheckAllErrors] = useState<Record<string, string>>({})
+  const [detailsExpanded, setDetailsExpanded] = useState<Record<string, boolean>>({})
   const orderRef = useRef<string[]>([])
-  const [spotifyToken, setSpotifyToken] = useState<string | null>(null)
-  const [tokenExpiry, setTokenExpiry] = useState(0)
 
   useEffect(() => {
     loadPlaylists()
@@ -62,80 +79,106 @@ export default function DailyCheckView() {
     if (data) setContacts(data)
   }
 
-  async function getToken(): Promise<string> {
-    if (spotifyToken && Date.now() < tokenExpiry) return spotifyToken
-    const clientId = import.meta.env.VITE_SPOTIFY_CLIENT_ID as string
-    const clientSecret = import.meta.env.VITE_SPOTIFY_CLIENT_SECRET as string
-    const res = await fetch('https://accounts.spotify.com/api/token', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-        Authorization: 'Basic ' + btoa(clientId + ':' + clientSecret),
-      },
-      body: 'grant_type=client_credentials',
-    })
-    if (!res.ok) throw new Error(`Spotify auth failed (${res.status})`)
-    const data = await res.json() as { access_token: string; expires_in: number }
-    setSpotifyToken(data.access_token)
-    setTokenExpiry(Date.now() + (data.expires_in - 60) * 1000)
-    return data.access_token
-  }
-
+  // Writes last_checked_at only — track analysis is handled by "Check Playlists".
   async function markChecked(playlist_id: string) {
-    const pl = playlists.find(p => p.playlist_id === playlist_id)
-    if (!pl) return
-
     setChecking(prev => ({ ...prev, [playlist_id]: true }))
     setRowErrors(prev => { const n = { ...prev }; delete n[playlist_id]; return n })
-
     try {
-      const token = await getToken()
-
-      // Fetch all current track IDs from Spotify, paginating if needed
-      const currentTrackIds: string[] = []
-      let offset = 0
-      let total = Infinity
-      while (offset < total) {
-        const res = await fetch(
-          `https://api.spotify.com/v1/playlists/${playlist_id}/tracks?fields=items(track(id)),total&limit=100&offset=${offset}`,
-          { headers: { Authorization: `Bearer ${token}` } }
-        )
-        if (!res.ok) throw new Error(`Spotify error (${res.status})`)
-        const page = await res.json() as { items: Array<{ track: { id: string } | null }>; total: number }
-        total = page.total
-        for (const item of page.items) {
-          if (item.track?.id) currentTrackIds.push(item.track.id)
-        }
-        offset += 100
-      }
-
-      // Diff against stored snapshot
-      const prevIds = new Set(pl.last_snapshot_track_ids ?? [])
-      const newCount = currentTrackIds.filter(id => !prevIds.has(id)).length
-
       const now = new Date().toISOString()
       const { error } = await supabase
         .from('tracked_playlists')
-        .update({
-          last_checked_at: now,
-          last_track_count: currentTrackIds.length,
-          new_tracks_since_last_check: newCount,
-          last_snapshot_track_ids: currentTrackIds,
-        })
+        .update({ last_checked_at: now })
         .eq('playlist_id', playlist_id)
       if (error) throw new Error(`DB error: ${error.message}`)
-
       setPlaylists(prev => prev.map(p =>
-        p.playlist_id === playlist_id
-          ? { ...p, last_checked_at: now, last_snapshot_track_ids: currentTrackIds, new_tracks_since_last_check: newCount }
-          : p
+        p.playlist_id === playlist_id ? { ...p, last_checked_at: now } : p
       ))
-      setDeltaDisplay(prev => ({ ...prev, [playlist_id]: newCount }))
+      setMarkedDone(prev => ({ ...prev, [playlist_id]: true }))
     } catch (err) {
       setRowErrors(prev => ({ ...prev, [playlist_id]: err instanceof Error ? err.message : 'Check failed' }))
     } finally {
       setChecking(prev => { const n = { ...prev }; delete n[playlist_id]; return n })
     }
+  }
+
+  async function checkAllPlaylists() {
+    if (!spotifyConnected) {
+      alert('Connect Spotify first to check playlists.')
+      return
+    }
+    setCheckAllRunning(true)
+    setCheckAllResults({})
+    setCheckAllErrors({})
+
+    const currentPlaylists = playlists
+
+    await Promise.all(currentPlaylists.map(async pl => {
+      try {
+        const token = await getValidToken()
+
+        type SpotifyItem = {
+          added_at: string
+          item: { id: string; name: string; artists: Array<{ name: string }> } | null
+        }
+        const allItems: Array<{ added_at: string; name: string; artists: string }> = []
+        let offset = 0
+        let total = Infinity
+        while (offset < total) {
+          const res = await fetch(
+            `https://api.spotify.com/v1/playlists/${pl.playlist_id}/items?fields=items(added_at,item(id,name,artists(name))),total&limit=50&offset=${offset}`,
+            { headers: { Authorization: `Bearer ${token}` } }
+          )
+          if (!res.ok) throw new Error(`Spotify error ${res.status} for playlist ${pl.name}`)
+          const page = await res.json() as { items: SpotifyItem[]; total: number }
+          total = page.total
+          for (const it of page.items) {
+            if (it.item) {
+              allItems.push({
+                added_at: it.added_at,
+                name: it.item.name,
+                artists: it.item.artists.map(a => a.name).join(', '),
+              })
+            }
+          }
+          offset += 50
+        }
+
+        // Count tracks added after last_checked_at. If never checked, count all.
+        const lastChecked = pl.last_checked_at ? new Date(pl.last_checked_at) : null
+        const newItems = lastChecked
+          ? allItems.filter(t => new Date(t.added_at) > lastChecked)
+          : allItems
+
+        const { error } = await supabase
+          .from('tracked_playlists')
+          .update({
+            new_tracks_since_last_check: newItems.length,
+            total_tracks: total,
+          })
+          .eq('playlist_id', pl.playlist_id)
+        if (error) throw new Error(`DB write failed: ${error.message}`)
+
+        setPlaylists(prev => prev.map(p =>
+          p.playlist_id === pl.playlist_id
+            ? { ...p, new_tracks_since_last_check: newItems.length, total_tracks: total }
+            : p
+        ))
+        setCheckAllResults(prev => ({
+          ...prev,
+          [pl.playlist_id]: {
+            count: newItems.length,
+            tracks: newItems.map(t => ({ name: t.name, artists: t.artists })),
+          },
+        }))
+      } catch (err) {
+        setCheckAllErrors(prev => ({
+          ...prev,
+          [pl.playlist_id]: err instanceof Error ? err.message : 'Check failed',
+        }))
+      }
+    }))
+
+    setCheckAllRunning(false)
   }
 
   async function toggleContact(id: string, current: boolean) {
@@ -150,7 +193,7 @@ export default function DailyCheckView() {
   async function refreshAll() {
     let token: string
     try {
-      token = await getToken()
+      token = await getValidToken()
     } catch (err) {
       alert(`Spotify auth failed: ${err instanceof Error ? err.message : 'Unknown error'}`)
       return
@@ -179,18 +222,21 @@ export default function DailyCheckView() {
           added_at: string
         }[] = []
         while (next) {
-          const url = `https://api.spotify.com/v1/playlists/${pl.playlist_id}/tracks?offset=${offset}&limit=50&fields=items(added_at,track(id,name,artists(name))),next`
+          const url = `https://api.spotify.com/v1/playlists/${pl.playlist_id}/items?offset=${offset}&limit=50&fields=items(added_at,item(id,name,artists(name))),next`
           const r = await fetch(next === 'start' ? url : next, {
             headers: { Authorization: `Bearer ${token}` }
           })
-          const d = await r.json() as { items?: Array<{ added_at: string; track?: { id?: string; name?: string; artists?: Array<{ name: string }> } }>; next?: string }
+          const d = await r.json() as {
+            items?: Array<{ added_at: string; item?: { id?: string; name?: string; artists?: Array<{ name: string }> } }>
+            next?: string
+          }
           for (const item of d.items || []) {
-            if (item?.track?.id) {
+            if (item?.item?.id) {
               newTracks.push({
                 playlist_id: pl.playlist_id,
-                track_id: item.track.id,
-                track_name: item.track.name ?? '',
-                artist_name: item.track.artists?.[0]?.name || '',
+                track_id: item.item.id,
+                track_name: item.item.name ?? '',
+                artist_name: item.item.artists?.[0]?.name || '',
                 added_at: item.added_at,
               })
             }
@@ -249,30 +295,62 @@ export default function DailyCheckView() {
       {/* Playlists section */}
       <div style={{ marginBottom: 40 }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-          <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.08em', color: '#888888', textTransform: 'uppercase' }}>Playlists</span>
-          <button onClick={refreshAll} style={{
-            background: '#1A1A1A', border: '1px solid #2A2A2A', color: '#F0F0F0',
-            borderRadius: 6, padding: '5px 14px', fontSize: 11, fontWeight: 500,
-            letterSpacing: '0.04em', cursor: 'pointer',
-          }}>Refresh All</button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.08em', color: '#888888', textTransform: 'uppercase' }}>Playlists</span>
+            {spotifyConnected && (
+              <span style={{ fontSize: 10, color: '#1DB954', fontWeight: 500, letterSpacing: '0.04em' }}>● Connected</span>
+            )}
+          </div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            {!spotifyConnected && (
+              <button
+                onClick={() => initiateAuth()}
+                style={{
+                  background: '#1DB954', border: 'none', color: '#000',
+                  borderRadius: 6, padding: '5px 14px', fontSize: 11, fontWeight: 600,
+                  letterSpacing: '0.04em', cursor: 'pointer',
+                }}
+              >Connect Spotify</button>
+            )}
+            {spotifyConnected && (
+              <button
+                onClick={checkAllPlaylists}
+                disabled={checkAllRunning}
+                style={{
+                  background: checkAllRunning ? '#1A1A1A' : '#E0142A',
+                  border: checkAllRunning ? '1px solid #2A2A2A' : '1px solid #E0142A',
+                  color: checkAllRunning ? '#666' : '#fff',
+                  borderRadius: 6, padding: '5px 14px', fontSize: 11, fontWeight: 600,
+                  letterSpacing: '0.04em', cursor: checkAllRunning ? 'default' : 'pointer',
+                }}
+              >{checkAllRunning ? 'Checking…' : 'Check Playlists'}</button>
+            )}
+            <button onClick={refreshAll} style={{
+              background: '#1A1A1A', border: '1px solid #2A2A2A', color: '#F0F0F0',
+              borderRadius: 6, padding: '5px 14px', fontSize: 11, fontWeight: 500,
+              letterSpacing: '0.04em', cursor: 'pointer',
+            }}>Refresh All</button>
+          </div>
         </div>
 
         {/* Column headers */}
         <div style={{ display: 'flex', alignItems: 'center', padding: '0 12px 8px', borderBottom: '1px solid #1E1E1E', marginBottom: 4 }}>
           <span style={{ flex: 1, fontSize: 10, color: '#444', letterSpacing: '0.06em', textTransform: 'uppercase' }}>Name</span>
-          <span style={{ width: 160, textAlign: 'center', fontSize: 10, color: '#444', letterSpacing: '0.06em', textTransform: 'uppercase' }}>New Since Last Check</span>
+          <span style={{ width: 200, textAlign: 'center', fontSize: 10, color: '#444', letterSpacing: '0.06em', textTransform: 'uppercase' }}>New Since Last Check</span>
           <span style={{ width: 130, textAlign: 'center', fontSize: 10, color: '#444', letterSpacing: '0.06em', textTransform: 'uppercase' }}>Days Since Checked</span>
           <span style={{ width: 110 }} />
         </div>
 
         {playlists.map(pl => {
-          const newTracks = tracks[pl.playlist_id] || []
-          const count = newTracks.length
+          const dbTracks = tracks[pl.playlist_id] || []
+          const dbCount = dbTracks.length
           const isExpanded = expanded[pl.playlist_id]
           const isRefreshing = refreshing[pl.playlist_id]
           const isChecking = checking[pl.playlist_id]
           const rowError = rowErrors[pl.playlist_id]
-          const delta = deltaDisplay[pl.playlist_id]
+          const checkResult = checkAllResults[pl.playlist_id]
+          const checkError = checkAllErrors[pl.playlist_id]
+          const isDetailExpanded = detailsExpanded[pl.playlist_id]
 
           return (
             <div key={pl.playlist_id}>
@@ -293,20 +371,25 @@ export default function DailyCheckView() {
                 </div>
 
                 {/* New since last check */}
-                <div style={{ width: 160, textAlign: 'center' }}>
-                  {delta != null ? (
-                    <span style={{ fontSize: 12, color: delta > 0 ? '#E0142A' : '#444', fontWeight: delta > 0 ? 600 : 400 }}>
-                      {delta > 0 ? `+${delta} new` : 'No new tracks'}
-                    </span>
+                <div style={{ width: 200, textAlign: 'center' }}>
+                  {checkError ? (
+                    <span style={{ fontSize: 10, color: '#E0142A' }} title={checkError}>Error</span>
+                  ) : checkResult != null ? (
+                    checkResult.count > 0 ? (
+                      <button
+                        onClick={() => setDetailsExpanded(prev => ({ ...prev, [pl.playlist_id]: !isDetailExpanded }))}
+                        style={{ background: '#E0142A', color: '#fff', border: 'none', borderRadius: 12, padding: '2px 10px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
+                      >+{checkResult.count} new</button>
+                    ) : (
+                      <span style={{ fontSize: 11, color: '#444' }}>No new tracks since last check</span>
+                    )
                   ) : isRefreshing ? (
                     <span style={{ fontSize: 11, color: '#888' }}>Refreshing…</span>
-                  ) : count > 0 ? (
+                  ) : dbCount > 0 ? (
                     <button
                       onClick={() => setExpanded(prev => ({ ...prev, [pl.playlist_id]: !isExpanded }))}
                       style={{ background: '#E0142A', color: '#fff', border: 'none', borderRadius: 12, padding: '2px 10px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
-                    >
-                      {count} new
-                    </button>
+                    >{dbCount} new</button>
                   ) : (
                     <span style={{ color: '#444', fontSize: 13 }}>—</span>
                   )}
@@ -332,7 +415,7 @@ export default function DailyCheckView() {
                       borderRadius: 6, padding: '4px 12px', fontSize: 11, fontWeight: 600,
                       letterSpacing: '0.06em', cursor: 'default',
                     }}>Checking…</button>
-                  ) : delta != null ? (
+                  ) : markedDone[pl.playlist_id] ? (
                     <button style={{
                       background: 'transparent', border: '1px solid #444', color: '#444',
                       borderRadius: 6, padding: '4px 12px', fontSize: 11, fontWeight: 600,
@@ -352,10 +435,22 @@ export default function DailyCheckView() {
                 </div>
               </div>
 
-              {/* Expanded track list */}
-              {isExpanded && (
+              {/* Check Playlists expandable track list */}
+              {isDetailExpanded && checkResult && checkResult.tracks.length > 0 && (
                 <div style={{ background: '#0D0D0D', borderBottom: '1px solid #1E1E1E', padding: '8px 24px' }}>
-                  {newTracks.map(t => (
+                  {checkResult.tracks.map((t, i) => (
+                    <div key={i} style={{ padding: '5px 0', fontSize: 12, color: '#BBBBBB', borderBottom: '1px solid #181818' }}>
+                      <span style={{ color: '#F0F0F0', fontWeight: 500 }}>{t.name}</span>
+                      <span style={{ color: '#666', marginLeft: 8 }}>{t.artists}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* DB-based expandable track list (shown when no check-all results) */}
+              {isExpanded && !checkResult && (
+                <div style={{ background: '#0D0D0D', borderBottom: '1px solid #1E1E1E', padding: '8px 24px' }}>
+                  {dbTracks.map(t => (
                     <div key={t.track_id} style={{ padding: '5px 0', fontSize: 12, color: '#BBBBBB', borderBottom: '1px solid #181818' }}>
                       <span style={{ color: '#F0F0F0', fontWeight: 500 }}>{t.track_name}</span>
                       <span style={{ color: '#666', marginLeft: 8 }}>{t.artist_name}</span>
