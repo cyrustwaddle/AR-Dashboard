@@ -4,7 +4,7 @@
 //   - http://localhost:5173/callback
 
 const CLIENT_ID = import.meta.env.VITE_SPOTIFY_CLIENT_ID as string
-const REDIRECT_URI = import.meta.env.VITE_SPOTIFY_REDIRECT_URI as string
+const REDIRECT_URI = `${window.location.origin}/callback`
 const SCOPES = 'playlist-read-private playlist-read-collaborative'
 
 const STATE_KEY = 'spotify_pkce_state'
