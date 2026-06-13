@@ -118,14 +118,15 @@ export default function DailyCheckView({ spotifyConnected }: Props) {
 
         type SpotifyItem = {
           added_at: string
-          item: { id: string; name: string; artists: Array<{ name: string }> } | null
+          item?: { id: string; name: string; artists: Array<{ name: string }> } | null
+          track?: { id: string; name: string; artists: Array<{ name: string }> } | null
         }
         const allItems: Array<{ added_at: string; name: string; artists: string }> = []
         let offset = 0
         let total = Infinity
         while (offset < total) {
           const res = await fetch(
-            `https://api.spotify.com/v1/playlists/${pl.playlist_id}/items?fields=items(added_at,item(id,name,artists(name))),total&limit=50&offset=${offset}`,
+            `https://api.spotify.com/v1/playlists/${pl.playlist_id}/items?limit=50&offset=${offset}`,
             { headers: { Authorization: `Bearer ${token}` } }
           )
           if (!res.ok) {
@@ -136,11 +137,12 @@ export default function DailyCheckView({ spotifyConnected }: Props) {
           const page = await res.json() as { items: SpotifyItem[]; total: number }
           total = page.total
           for (const it of page.items) {
-            if (it.item) {
+            const obj = it.item ?? it.track
+            if (obj) {
               allItems.push({
                 added_at: it.added_at,
-                name: it.item.name,
-                artists: it.item.artists.map(a => a.name).join(', '),
+                name: obj.name,
+                artists: obj.artists.map(a => a.name).join(', '),
               })
             }
           }
@@ -226,22 +228,27 @@ export default function DailyCheckView({ spotifyConnected }: Props) {
           added_at: string
         }[] = []
         while (next) {
-          const url = `https://api.spotify.com/v1/playlists/${pl.playlist_id}/items?offset=${offset}&limit=50&fields=items(added_at,item(id,name,artists(name))),next`
+          const url = `https://api.spotify.com/v1/playlists/${pl.playlist_id}/items?offset=${offset}&limit=50`
           const r = await fetch(next === 'start' ? url : next, {
             headers: { Authorization: `Bearer ${token}` }
           })
           const d = await r.json() as {
-            items?: Array<{ added_at: string; item?: { id?: string; name?: string; artists?: Array<{ name: string }> } }>
+            items?: Array<{
+              added_at: string
+              item?: { id?: string; name?: string; artists?: Array<{ name: string }> } | null
+              track?: { id?: string; name?: string; artists?: Array<{ name: string }> } | null
+            }>
             next?: string
           }
-          for (const item of d.items || []) {
-            if (item?.item?.id) {
+          for (const entry of d.items || []) {
+            const obj = entry?.item || entry?.track
+            if (obj?.id) {
               newTracks.push({
                 playlist_id: pl.playlist_id,
-                track_id: item.item.id,
-                track_name: item.item.name ?? '',
-                artist_name: item.item.artists?.[0]?.name || '',
-                added_at: item.added_at,
+                track_id: obj.id,
+                track_name: obj.name ?? '',
+                artist_name: obj.artists?.[0]?.name || '',
+                added_at: entry.added_at,
               })
             }
           }
