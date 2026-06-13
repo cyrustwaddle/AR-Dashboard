@@ -128,7 +128,11 @@ export default function DailyCheckView({ spotifyConnected }: Props) {
             `https://api.spotify.com/v1/playlists/${pl.playlist_id}/items?fields=items(added_at,item(id,name,artists(name))),total&limit=50&offset=${offset}`,
             { headers: { Authorization: `Bearer ${token}` } }
           )
-          if (!res.ok) throw new Error(`Spotify error ${res.status} for playlist ${pl.name}`)
+          if (!res.ok) {
+            const body = await res.text()
+            console.error(`Spotify ${res.status} for "${pl.name}":`, body)
+            throw new Error(`Spotify ${res.status}: ${body}`)
+          }
           const page = await res.json() as { items: SpotifyItem[]; total: number }
           total = page.total
           for (const it of page.items) {
