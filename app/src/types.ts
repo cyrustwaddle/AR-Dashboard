@@ -5,6 +5,8 @@ export interface Playlist {
   last_checked_at: string | null
   total_tracks: number
   last_snapshot_offset: number
+  last_snapshot_track_ids: string[] | null
+  new_tracks_since_last_check: number | null
 }
 
 export interface PlaylistTrack {

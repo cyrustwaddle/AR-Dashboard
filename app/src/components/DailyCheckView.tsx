@@ -13,7 +13,9 @@ export default function DailyCheckView() {
   })
   const [expanded, setExpanded] = useState<Record<string, boolean>>({})
   const [refreshing, setRefreshing] = useState<Record<string, boolean>>({})
-  const [checkedPlaylists, setCheckedPlaylists] = useState<Record<string, boolean>>({})
+  const [checking, setChecking] = useState<Record<string, boolean>>({})
+  const [rowErrors, setRowErrors] = useState<Record<string, string>>({})
+  const [deltaDisplay, setDeltaDisplay] = useState<Record<string, number | null>>({})
   const orderRef = useRef<string[]>([])
   const [spotifyToken, setSpotifyToken] = useState<string | null>(null)
   const [tokenExpiry, setTokenExpiry] = useState(0)
@@ -60,17 +62,80 @@ export default function DailyCheckView() {
     if (data) setContacts(data)
   }
 
+  async function getToken(): Promise<string> {
+    if (spotifyToken && Date.now() < tokenExpiry) return spotifyToken
+    const clientId = import.meta.env.VITE_SPOTIFY_CLIENT_ID as string
+    const clientSecret = import.meta.env.VITE_SPOTIFY_CLIENT_SECRET as string
+    const res = await fetch('https://accounts.spotify.com/api/token', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        Authorization: 'Basic ' + btoa(clientId + ':' + clientSecret),
+      },
+      body: 'grant_type=client_credentials',
+    })
+    if (!res.ok) throw new Error(`Spotify auth failed (${res.status})`)
+    const data = await res.json() as { access_token: string; expires_in: number }
+    setSpotifyToken(data.access_token)
+    setTokenExpiry(Date.now() + (data.expires_in - 60) * 1000)
+    return data.access_token
+  }
+
   async function markChecked(playlist_id: string) {
-    const now = new Date().toISOString()
-    console.log('[markChecked] firing for', playlist_id)
-    const { data, error } = await supabase
-      .from('tracked_playlists')
-      .update({ last_checked_at: now })
-      .eq('playlist_id', playlist_id)
-      .select()
-    console.log('[markChecked] result', data, error)
-    if (!error) setCheckedPlaylists(prev => ({ ...prev, [playlist_id]: true }))
-    await loadPlaylists()
+    const pl = playlists.find(p => p.playlist_id === playlist_id)
+    if (!pl) return
+
+    setChecking(prev => ({ ...prev, [playlist_id]: true }))
+    setRowErrors(prev => { const n = { ...prev }; delete n[playlist_id]; return n })
+
+    try {
+      const token = await getToken()
+
+      // Fetch all current track IDs from Spotify, paginating if needed
+      const currentTrackIds: string[] = []
+      let offset = 0
+      let total = Infinity
+      while (offset < total) {
+        const res = await fetch(
+          `https://api.spotify.com/v1/playlists/${playlist_id}/tracks?fields=items(track(id)),total&limit=100&offset=${offset}`,
+          { headers: { Authorization: `Bearer ${token}` } }
+        )
+        if (!res.ok) throw new Error(`Spotify error (${res.status})`)
+        const page = await res.json() as { items: Array<{ track: { id: string } | null }>; total: number }
+        total = page.total
+        for (const item of page.items) {
+          if (item.track?.id) currentTrackIds.push(item.track.id)
+        }
+        offset += 100
+      }
+
+      // Diff against stored snapshot
+      const prevIds = new Set(pl.last_snapshot_track_ids ?? [])
+      const newCount = currentTrackIds.filter(id => !prevIds.has(id)).length
+
+      const now = new Date().toISOString()
+      const { error } = await supabase
+        .from('tracked_playlists')
+        .update({
+          last_checked_at: now,
+          last_track_count: currentTrackIds.length,
+          new_tracks_since_last_check: newCount,
+          last_snapshot_track_ids: currentTrackIds,
+        })
+        .eq('playlist_id', playlist_id)
+      if (error) throw new Error(`DB error: ${error.message}`)
+
+      setPlaylists(prev => prev.map(p =>
+        p.playlist_id === playlist_id
+          ? { ...p, last_checked_at: now, last_snapshot_track_ids: currentTrackIds, new_tracks_since_last_check: newCount }
+          : p
+      ))
+      setDeltaDisplay(prev => ({ ...prev, [playlist_id]: newCount }))
+    } catch (err) {
+      setRowErrors(prev => ({ ...prev, [playlist_id]: err instanceof Error ? err.message : 'Check failed' }))
+    } finally {
+      setChecking(prev => { const n = { ...prev }; delete n[playlist_id]; return n })
+    }
   }
 
   async function toggleContact(id: string, current: boolean) {
@@ -83,22 +148,12 @@ export default function DailyCheckView() {
   }
 
   async function refreshAll() {
-    let token = spotifyToken
-    if (!token || Date.now() >= tokenExpiry) {
-      const clientId = import.meta.env.VITE_SPOTIFY_CLIENT_ID as string
-      const clientSecret = import.meta.env.VITE_SPOTIFY_CLIENT_SECRET as string
-      const res = await fetch('https://accounts.spotify.com/api/token', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-          Authorization: 'Basic ' + btoa(clientId + ':' + clientSecret),
-        },
-        body: 'grant_type=client_credentials',
-      })
-      const data = await res.json()
-      token = data.access_token
-      setSpotifyToken(token)
-      setTokenExpiry(Date.now() + (data.expires_in - 60) * 1000)
+    let token: string
+    try {
+      token = await getToken()
+    } catch (err) {
+      alert(`Spotify auth failed: ${err instanceof Error ? err.message : 'Unknown error'}`)
+      return
     }
 
     for (const pl of playlists) {
@@ -108,7 +163,7 @@ export default function DailyCheckView() {
           `https://api.spotify.com/v1/playlists/${pl.playlist_id}?fields=tracks.total`,
           { headers: { Authorization: `Bearer ${token}` } }
         )
-        const meta = await metaRes.json()
+        const meta = await metaRes.json() as { tracks?: { total: number } }
         const total = meta?.tracks?.total ?? 0
         if (total <= pl.total_tracks) {
           setRefreshing(prev => ({ ...prev, [pl.playlist_id]: false }))
@@ -128,13 +183,13 @@ export default function DailyCheckView() {
           const r = await fetch(next === 'start' ? url : next, {
             headers: { Authorization: `Bearer ${token}` }
           })
-          const d = await r.json()
+          const d = await r.json() as { items?: Array<{ added_at: string; track?: { id?: string; name?: string; artists?: Array<{ name: string }> } }>; next?: string }
           for (const item of d.items || []) {
             if (item?.track?.id) {
               newTracks.push({
                 playlist_id: pl.playlist_id,
                 track_id: item.track.id,
-                track_name: item.track.name,
+                track_name: item.track.name ?? '',
                 artist_name: item.track.artists?.[0]?.name || '',
                 added_at: item.added_at,
               })
@@ -161,6 +216,14 @@ export default function DailyCheckView() {
       setRefreshing(prev => ({ ...prev, [pl.playlist_id]: false }))
     }
     await loadTrackCounts(playlists)
+  }
+
+  function daysSinceChecked(last_checked_at: string | null): string {
+    if (!last_checked_at) return 'Never'
+    const days = Math.floor((Date.now() - new Date(last_checked_at).getTime()) / 86_400_000)
+    if (days === 0) return 'Today'
+    if (days === 1) return '1 day'
+    return `${days} days`
   }
 
   return (
@@ -197,7 +260,8 @@ export default function DailyCheckView() {
         {/* Column headers */}
         <div style={{ display: 'flex', alignItems: 'center', padding: '0 12px 8px', borderBottom: '1px solid #1E1E1E', marginBottom: 4 }}>
           <span style={{ flex: 1, fontSize: 10, color: '#444', letterSpacing: '0.06em', textTransform: 'uppercase' }}>Name</span>
-          <span style={{ width: 140, textAlign: 'center', fontSize: 10, color: '#444', letterSpacing: '0.06em', textTransform: 'uppercase' }}>New Since Last Check</span>
+          <span style={{ width: 160, textAlign: 'center', fontSize: 10, color: '#444', letterSpacing: '0.06em', textTransform: 'uppercase' }}>New Since Last Check</span>
+          <span style={{ width: 130, textAlign: 'center', fontSize: 10, color: '#444', letterSpacing: '0.06em', textTransform: 'uppercase' }}>Days Since Checked</span>
           <span style={{ width: 110 }} />
         </div>
 
@@ -206,6 +270,10 @@ export default function DailyCheckView() {
           const count = newTracks.length
           const isExpanded = expanded[pl.playlist_id]
           const isRefreshing = refreshing[pl.playlist_id]
+          const isChecking = checking[pl.playlist_id]
+          const rowError = rowErrors[pl.playlist_id]
+          const delta = deltaDisplay[pl.playlist_id]
+
           return (
             <div key={pl.playlist_id}>
               <div style={{
@@ -223,9 +291,14 @@ export default function DailyCheckView() {
                     onMouseLeave={e => (e.currentTarget.style.textDecoration = 'none')}
                   >{pl.name}</a>
                 </div>
-                {/* Count */}
-                <div style={{ width: 140, textAlign: 'center' }}>
-                  {isRefreshing ? (
+
+                {/* New since last check */}
+                <div style={{ width: 160, textAlign: 'center' }}>
+                  {delta != null ? (
+                    <span style={{ fontSize: 12, color: delta > 0 ? '#E0142A' : '#444', fontWeight: delta > 0 ? 600 : 400 }}>
+                      {delta > 0 ? `+${delta} new` : 'No new tracks'}
+                    </span>
+                  ) : isRefreshing ? (
                     <span style={{ fontSize: 11, color: '#888' }}>Refreshing…</span>
                   ) : count > 0 ? (
                     <button
@@ -238,14 +311,32 @@ export default function DailyCheckView() {
                     <span style={{ color: '#444', fontSize: 13 }}>—</span>
                   )}
                 </div>
-                {/* Checked button */}
-                <div style={{ width: 110, textAlign: 'right' }}>
-                  {checkedPlaylists[pl.playlist_id] ? (
+
+                {/* Days since checked */}
+                <div style={{ width: 130, textAlign: 'center' }}>
+                  <span style={{ fontSize: 12, color: '#666' }}>
+                    {daysSinceChecked(pl.last_checked_at)}
+                  </span>
+                </div>
+
+                {/* Actions */}
+                <div style={{ width: 110, textAlign: 'right', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 6 }}>
+                  {rowError && (
+                    <span style={{ fontSize: 10, color: '#E0142A', maxWidth: 120, lineHeight: 1.3 }} title={rowError}>
+                      Error
+                    </span>
+                  )}
+                  {isChecking ? (
                     <button style={{
                       background: 'transparent', border: '1px solid #444', color: '#444',
                       borderRadius: 6, padding: '4px 12px', fontSize: 11, fontWeight: 600,
-                      letterSpacing: '0.06em', cursor: 'default', boxShadow: 'none',
-                      transition: 'all 0.15s ease',
+                      letterSpacing: '0.06em', cursor: 'default',
+                    }}>Checking…</button>
+                  ) : delta != null ? (
+                    <button style={{
+                      background: 'transparent', border: '1px solid #444', color: '#444',
+                      borderRadius: 6, padding: '4px 12px', fontSize: 11, fontWeight: 600,
+                      letterSpacing: '0.06em', cursor: 'default',
                     }}>✓ Done</button>
                   ) : (
                     <button
@@ -260,6 +351,7 @@ export default function DailyCheckView() {
                   )}
                 </div>
               </div>
+
               {/* Expanded track list */}
               {isExpanded && (
                 <div style={{ background: '#0D0D0D', borderBottom: '1px solid #1E1E1E', padding: '8px 24px' }}>

@@ -95,7 +95,7 @@ const SL: React.CSSProperties = {
 export default function PitchGenerator() {
   const [allArtists, setAllArtists] = useState<PitchArtist[]>([])
   const [loadingArtists, setLoadingArtists] = useState(true)
-  const [selectedArtists, setSelectedArtists] = useState<SelectedArtist[]>([])
+  const [selectedArtist, setSelectedArtist] = useState<SelectedArtist | null>(null)
   const [dropdownOpen, setDropdownOpen] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
 
@@ -110,7 +110,7 @@ export default function PitchGenerator() {
   const [draftGenerated, setDraftGenerated] = useState(false)
   const [draftOutdated, setDraftOutdated] = useState(false)
 
-  // Load ben-sendable artists
+  // Load all pipeline artists
   useEffect(() => {
     supabase
       .from('artists')
@@ -136,18 +136,14 @@ export default function PitchGenerator() {
 
   // ---- Handlers ----
 
-  function addArtist(artist: PitchArtist) {
-    setSelectedArtists(prev => [...prev, { ...artist, polishedNotes: null }])
-    if (draftGenerated) setDraftOutdated(true)
-  }
-
-  function removeArtist(id: string) {
-    setSelectedArtists(prev => prev.filter(a => a.id !== id))
+  function selectArtist(artist: PitchArtist) {
+    setSelectedArtist({ ...artist, polishedNotes: null })
+    setDropdownOpen(false)
     if (draftGenerated) setDraftOutdated(true)
   }
 
   async function generateDraft() {
-    if (generating) return
+    if (generating || !selectedArtist) return
     setGenerating(true)
 
     try {
@@ -163,31 +159,32 @@ Rules:
 - Never use em dashes (—). Use a comma, period, or rewrite the sentence instead.
 - Return ONLY the polished paragraph, no preamble, no explanation`
 
-      const polishedArtists = await Promise.all(
-        selectedArtists.map(async (a) => {
-          const rawNotes = a.notes?.trim()
-          if (!rawNotes) return { ...a, polishedNotes: null }
+      const a = selectedArtist
+      const rawNotes = a.notes?.trim()
+      let polished: SelectedArtist
 
-          const context = [
-            a.artist_name,
-            a.genre_lane,
-            a.spotify_monthly_listeners != null ? `${fmtNum(a.spotify_monthly_listeners)} monthly listeners` : null,
-            a.tiktok_followers != null ? `${fmtNum(a.tiktok_followers)} TikTok followers` : null,
-            a.tiktok_avg_views != null ? `${fmtNum(a.tiktok_avg_views)} avg TikTok views` : null,
-            a.stage,
-          ].filter(Boolean).join(', ')
+      if (!rawNotes) {
+        polished = { ...a, polishedNotes: null }
+      } else {
+        const context = [
+          a.artist_name,
+          a.genre_lane,
+          a.spotify_monthly_listeners != null ? `${fmtNum(a.spotify_monthly_listeners)} monthly listeners` : null,
+          a.tiktok_followers != null ? `${fmtNum(a.tiktok_followers)} TikTok followers` : null,
+          a.tiktok_avg_views != null ? `${fmtNum(a.tiktok_avg_views)} avg TikTok views` : null,
+          a.stage,
+        ].filter(Boolean).join(', ')
 
-          const polished = await callClaude(
-            system,
-            `Raw notes: ${rawNotes}\nArtist context: ${context}`,
-            1000,
-          )
-          return { ...a, polishedNotes: polished.replace(/ — /g, ', ').replace(/—/g, ',') }
-        })
-      )
+        const polishedText = await callClaude(
+          system,
+          `Raw notes: ${rawNotes}\nArtist context: ${context}`,
+          1000,
+        )
+        polished = { ...a, polishedNotes: polishedText.replace(/ — /g, ', ').replace(/—/g, ',') }
+      }
 
-      setSelectedArtists(polishedArtists)
-      setEmailDraft(generateEmail(polishedArtists))
+      setSelectedArtist(polished)
+      setEmailDraft(generateEmail([polished]))
       setDraftGenerated(true)
       setDraftOutdated(false)
       setUserEditedEmail(false)
@@ -230,14 +227,14 @@ Notes: Still early but the sound is there and she's already drawing interest. In
 Best,
 ---`
 
-    const artistData = selectedArtists.map(a => ({
-      artist_name: a.artist_name,
-      genre_lane: a.genre_lane,
-      spotify_monthly_listeners: a.spotify_monthly_listeners,
-      tiktok_followers: a.tiktok_followers,
-      tiktok_avg_views: a.tiktok_avg_views,
-      polished_notes: a.polishedNotes,
-    }))
+    const artistData = selectedArtist ? [{
+      artist_name: selectedArtist.artist_name,
+      genre_lane: selectedArtist.genre_lane,
+      spotify_monthly_listeners: selectedArtist.spotify_monthly_listeners,
+      tiktok_followers: selectedArtist.tiktok_followers,
+      tiktok_avg_views: selectedArtist.tiktok_avg_views,
+      polished_notes: selectedArtist.polishedNotes,
+    }] : []
 
     const userMsg = `Current draft:\n${emailDraft}\n\nRevision instruction: ${revisionInput}\n\nAll artist data:\n${JSON.stringify(artistData, null, 2)}`
 
@@ -254,14 +251,14 @@ Best,
     }
   }
 
-  const availableArtists = allArtists.filter(a => !selectedArtists.some(s => s.id === a.id))
+  const availableArtists = allArtists.filter(a => a.id !== selectedArtist?.id)
 
   return (
     <div style={{ padding: '20px 24px', maxWidth: 800 }}>
 
-      {/* ── Section 1: Artist multi-select ── */}
+      {/* ── Section 1: Artist single-select ── */}
       <div style={{ marginBottom: 28 }}>
-        <div style={SL}>Select Artists</div>
+        <div style={SL}>Select Artist</div>
 
         <div ref={dropdownRef} style={{ position: 'relative' }}>
           {/* Trigger */}
@@ -273,11 +270,13 @@ Best,
               borderRadius: 4, padding: '8px 12px',
               cursor: loadingArtists ? 'not-allowed' : 'pointer',
               display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-              fontSize: 13, color: '#666666', userSelect: 'none',
+              fontSize: 13, userSelect: 'none',
               transition: 'border-color 0.15s',
             }}
           >
-            <span>{loadingArtists ? 'Loading artists…' : 'Select artists…'}</span>
+            <span style={{ color: selectedArtist ? '#F0F0F0' : '#666666' }}>
+              {loadingArtists ? 'Loading artists…' : selectedArtist ? selectedArtist.artist_name : 'Select an artist…'}
+            </span>
             <span style={{ fontSize: 9, color: '#444444' }}>{dropdownOpen ? '▲' : '▼'}</span>
           </div>
 
@@ -291,15 +290,13 @@ Best,
             }}>
               {availableArtists.length === 0 ? (
                 <div style={{ padding: '10px 12px', fontSize: 12, color: '#444444' }}>
-                  {selectedArtists.length === allArtists.length && allArtists.length > 0
-                    ? 'All artists selected'
-                    : 'No pipeline artists found'}
+                  No pipeline artists found
                 </div>
               ) : (
                 availableArtists.map(a => (
                   <div
                     key={a.id}
-                    onClick={() => addArtist(a)}
+                    onClick={() => selectArtist(a)}
                     style={{
                       padding: '9px 12px', cursor: 'pointer', fontSize: 13,
                       borderBottom: '1px solid #1A1A1A',
@@ -310,14 +307,6 @@ Best,
                     onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
                   >
                     <span style={{ color: '#F0F0F0', fontWeight: 500 }}>{a.artist_name}</span>
-                    {a.ben_sendable && (
-                      <span style={{
-                        fontSize: 9, fontWeight: 600, letterSpacing: '0.07em',
-                        textTransform: 'uppercase', color: '#E0142A',
-                        border: '1px solid #E0142A', borderRadius: 2,
-                        padding: '1px 4px', lineHeight: 1.4, flexShrink: 0,
-                      }}>Ben</span>
-                    )}
                     {a.genre_lane && (
                       <span style={{ fontSize: 11, color: '#666666' }}>{a.genre_lane}</span>
                     )}
@@ -332,35 +321,10 @@ Best,
             </div>
           )}
         </div>
-
-        {/* Selected chips */}
-        {selectedArtists.length > 0 && (
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 10 }}>
-            {selectedArtists.map(a => (
-              <span
-                key={a.id}
-                style={{
-                  background: '#1C1C1C', border: '1px solid #2A2A2A',
-                  borderRadius: 2, padding: '4px 10px',
-                  fontSize: 12, color: '#F0F0F0',
-                  display: 'inline-flex', alignItems: 'center', gap: 6,
-                }}
-              >
-                {a.artist_name}
-                <span
-                  onClick={() => removeArtist(a.id)}
-                  style={{ color: '#555555', cursor: 'pointer', fontSize: 14, lineHeight: 1 }}
-                  onMouseEnter={e => (e.currentTarget.style.color = '#E0142A')}
-                  onMouseLeave={e => (e.currentTarget.style.color = '#555555')}
-                >×</span>
-              </span>
-            ))}
-          </div>
-        )}
       </div>
 
       {/* ── Section 2: Generate draft button ── */}
-      {selectedArtists.length > 0 && !draftGenerated && (
+      {selectedArtist != null && !draftGenerated && (
         <div style={{ marginBottom: 28 }}>
           <button
             className="btn-primary"
@@ -380,7 +344,7 @@ Best,
             <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
               {userEditedEmail && (
                 <span
-                  onClick={() => { setUserEditedEmail(false); setDraftOutdated(false); setEmailDraft(generateEmail(selectedArtists)) }}
+                  onClick={() => { setUserEditedEmail(false); setDraftOutdated(false); setEmailDraft(selectedArtist ? generateEmail([selectedArtist]) : '') }}
                   style={{ fontSize: 11, color: '#666666', cursor: 'pointer', letterSpacing: '0.02em', fontWeight: 400, textTransform: 'none' }}
                   onMouseEnter={e => (e.currentTarget.style.color = '#AAAAAA')}
                   onMouseLeave={e => (e.currentTarget.style.color = '#666666')}
@@ -392,7 +356,7 @@ Best,
                 onClick={() => {
                   setDraftGenerated(false)
                   setEmailDraft('')
-                  setSelectedArtists([])
+                  setSelectedArtist(null)
                   setRevisions([])
                   setRevisionInput('')
                   setUserEditedEmail(false)
