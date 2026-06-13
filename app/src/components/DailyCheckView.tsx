@@ -17,6 +17,9 @@ interface Props {
   spotifyConnected: boolean
 }
 
+// Flip to false once Spotify approves Extended Quota Mode for this app.
+const SPOTIFY_QUOTA_PENDING = true
+
 export default function DailyCheckView({ spotifyConnected }: Props) {
   const [playlists, setPlaylists] = useState<Playlist[]>([])
   const [tracks, setTracks] = useState<Record<string, PlaylistTrack[]>>({})
@@ -322,17 +325,25 @@ export default function DailyCheckView({ spotifyConnected }: Props) {
               >Connect Spotify</button>
             )}
             {spotifyConnected && (
-              <button
-                onClick={checkAllPlaylists}
-                disabled={checkAllRunning}
-                style={{
-                  background: checkAllRunning ? '#1A1A1A' : '#E0142A',
-                  border: checkAllRunning ? '1px solid #2A2A2A' : '1px solid #E0142A',
-                  color: checkAllRunning ? '#666' : '#fff',
+              SPOTIFY_QUOTA_PENDING ? (
+                <button disabled style={{
+                  background: '#1A1A1A', border: '1px solid #2A2A2A', color: '#444',
                   borderRadius: 6, padding: '5px 14px', fontSize: 11, fontWeight: 600,
-                  letterSpacing: '0.04em', cursor: checkAllRunning ? 'default' : 'pointer',
-                }}
-              >{checkAllRunning ? 'Checking…' : 'Check Playlists'}</button>
+                  letterSpacing: '0.04em', cursor: 'default',
+                }}>Approval Pending</button>
+              ) : (
+                <button
+                  onClick={checkAllPlaylists}
+                  disabled={checkAllRunning}
+                  style={{
+                    background: checkAllRunning ? '#1A1A1A' : '#E0142A',
+                    border: checkAllRunning ? '1px solid #2A2A2A' : '1px solid #E0142A',
+                    color: checkAllRunning ? '#666' : '#fff',
+                    borderRadius: 6, padding: '5px 14px', fontSize: 11, fontWeight: 600,
+                    letterSpacing: '0.04em', cursor: checkAllRunning ? 'default' : 'pointer',
+                  }}
+                >{checkAllRunning ? 'Checking…' : 'Check Playlists'}</button>
+              )
             )}
             <button onClick={refreshAll} style={{
               background: '#1A1A1A', border: '1px solid #2A2A2A', color: '#F0F0F0',
@@ -341,6 +352,17 @@ export default function DailyCheckView({ spotifyConnected }: Props) {
             }}>Refresh All</button>
           </div>
         </div>
+
+        {/* Quota pending notice */}
+        {SPOTIFY_QUOTA_PENDING && (
+          <div style={{
+            background: '#161616', border: '1px solid #2A2A2A', borderRadius: 6,
+            padding: '10px 14px', marginBottom: 14, fontSize: 12, color: '#888', lineHeight: 1.5,
+          }}>
+            <span style={{ color: '#BBBBBB', fontWeight: 500 }}>Playlist checking unavailable</span>
+            {' '}— Spotify Extended Quota Mode approval is pending. New track detection will be enabled once the app is approved.
+          </div>
+        )}
 
         {/* Column headers */}
         <div style={{ display: 'flex', alignItems: 'center', padding: '0 12px 8px', borderBottom: '1px solid #1E1E1E', marginBottom: 4 }}>
@@ -382,7 +404,9 @@ export default function DailyCheckView({ spotifyConnected }: Props) {
                 {/* New since last check */}
                 <div style={{ width: 200, textAlign: 'center' }}>
                   {checkError ? (
-                    <span style={{ fontSize: 10, color: '#E0142A' }} title={checkError}>Error</span>
+                    SPOTIFY_QUOTA_PENDING
+                      ? <span style={{ color: '#444', fontSize: 13 }}>—</span>
+                      : <span style={{ fontSize: 10, color: '#E0142A' }} title={checkError}>Error</span>
                   ) : checkResult != null ? (
                     checkResult.count > 0 ? (
                       <button
