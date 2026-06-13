@@ -118,15 +118,14 @@ export default function DailyCheckView({ spotifyConnected }: Props) {
 
         type SpotifyItem = {
           added_at: string
-          item?: { id: string; name: string; artists: Array<{ name: string }> } | null
-          track?: { id: string; name: string; artists: Array<{ name: string }> } | null
+          track: { id: string; name: string; artists: Array<{ name: string }> } | null
         }
         const allItems: Array<{ added_at: string; name: string; artists: string }> = []
         let offset = 0
         let total = Infinity
         while (offset < total) {
           const res = await fetch(
-            `https://api.spotify.com/v1/playlists/${pl.playlist_id}/items?limit=50&offset=${offset}`,
+            `https://api.spotify.com/v1/playlists/${pl.playlist_id}/tracks?limit=50&offset=${offset}`,
             { headers: { Authorization: `Bearer ${token}` } }
           )
           if (!res.ok) {
@@ -137,7 +136,7 @@ export default function DailyCheckView({ spotifyConnected }: Props) {
           const page = await res.json() as { items: SpotifyItem[]; total: number }
           total = page.total
           for (const it of page.items) {
-            const obj = it.item ?? it.track
+            const obj = it.track
             if (obj) {
               allItems.push({
                 added_at: it.added_at,
@@ -228,20 +227,19 @@ export default function DailyCheckView({ spotifyConnected }: Props) {
           added_at: string
         }[] = []
         while (next) {
-          const url = `https://api.spotify.com/v1/playlists/${pl.playlist_id}/items?offset=${offset}&limit=50`
+          const url = `https://api.spotify.com/v1/playlists/${pl.playlist_id}/tracks?offset=${offset}&limit=50`
           const r = await fetch(next === 'start' ? url : next, {
             headers: { Authorization: `Bearer ${token}` }
           })
           const d = await r.json() as {
             items?: Array<{
               added_at: string
-              item?: { id?: string; name?: string; artists?: Array<{ name: string }> } | null
               track?: { id?: string; name?: string; artists?: Array<{ name: string }> } | null
             }>
             next?: string
           }
           for (const entry of d.items || []) {
-            const obj = entry?.item || entry?.track
+            const obj = entry?.track
             if (obj?.id) {
               newTracks.push({
                 playlist_id: pl.playlist_id,
