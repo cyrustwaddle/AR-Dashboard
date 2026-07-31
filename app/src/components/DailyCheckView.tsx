@@ -13,6 +13,10 @@ export default function DailyCheckView() {
   const [checking, setChecking] = useState<Record<string, boolean>>({})
   const [rowErrors, setRowErrors] = useState<Record<string, string>>({})
   const [markedDone, setMarkedDone] = useState<Record<string, boolean>>({})
+  const [adding, setAdding] = useState(false)
+  const [newName, setNewName] = useState('')
+  const [newUrl, setNewUrl] = useState('')
+  const [addError, setAddError] = useState<string | null>(null)
   const orderRef = useRef<string[]>([])
 
   useEffect(() => {
@@ -23,9 +27,12 @@ export default function DailyCheckView() {
   async function loadPlaylists() {
     const { data } = await supabase.from('tracked_playlists').select('*').order('created_at', { ascending: true })
     if (data) {
-      if (orderRef.current.length === 0) {
-        orderRef.current = data.map(p => p.playlist_id)
+      const known = new Set(orderRef.current)
+      for (const p of data) {
+        if (!known.has(p.playlist_id)) orderRef.current.push(p.playlist_id)
       }
+      const live = new Set(data.map(p => p.playlist_id))
+      orderRef.current = orderRef.current.filter(id => live.has(id))
       const sorted = [...data].sort((a, b) =>
         orderRef.current.indexOf(a.playlist_id) - orderRef.current.indexOf(b.playlist_id)
       )
@@ -57,6 +64,56 @@ export default function DailyCheckView() {
     } finally {
       setChecking(prev => { const n = { ...prev }; delete n[playlist_id]; return n })
     }
+  }
+
+  function parsePlaylistId(input: string): string | null {
+    const s = input.trim()
+    if (!s) return null
+    // spotify:playlist:<id>
+    const uri = s.match(/^spotify:playlist:([A-Za-z0-9]+)$/)
+    if (uri) return uri[1]
+    // https://open.spotify.com/playlist/<id>?si=...  (also /intl-xx/playlist/<id>)
+    const url = s.match(/playlist\/([A-Za-z0-9]+)/)
+    if (url) return url[1]
+    // bare id
+    if (/^[A-Za-z0-9]{16,}$/.test(s)) return s
+    return null
+  }
+
+  async function addPlaylist() {
+    setAddError(null)
+    const name = newName.trim()
+    const playlist_id = parsePlaylistId(newUrl)
+    if (!name) { setAddError('Name is required'); return }
+    if (!playlist_id) { setAddError('Could not read a playlist ID from that URL'); return }
+    if (playlists.some(p => p.playlist_id === playlist_id)) {
+      setAddError('That playlist is already being tracked'); return
+    }
+    const { error } = await supabase.from('tracked_playlists').insert({
+      name,
+      playlist_id,
+      last_checked_at: new Date().toISOString(),
+      total_tracks: 0,
+      last_snapshot_offset: 0,
+    })
+    if (error) { setAddError(error.message); return }
+    setNewName('')
+    setNewUrl('')
+    setAdding(false)
+    await loadPlaylists()
+  }
+
+  async function deletePlaylist(playlist_id: string, name: string) {
+    if (!confirm(`Remove "${name}" from Daily Check? Its tracked history will be deleted too.`)) return
+    await supabase.from('playlist_tracks').delete().eq('playlist_id', playlist_id)
+    const { error } = await supabase.from('tracked_playlists').delete().eq('playlist_id', playlist_id)
+    if (error) {
+      setRowErrors(prev => ({ ...prev, [playlist_id]: `Delete failed: ${error.message}` }))
+      return
+    }
+    setMarkedDone(prev => { const n = { ...prev }; delete n[playlist_id]; return n })
+    setRowErrors(prev => { const n = { ...prev }; delete n[playlist_id]; return n })
+    await loadPlaylists()
   }
 
   async function toggleContact(id: string, current: boolean) {
@@ -95,15 +152,57 @@ export default function DailyCheckView() {
 
       {/* Playlists section */}
       <div style={{ marginBottom: 40 }}>
-        <div style={{ marginBottom: 16 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
           <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.08em', color: '#888888', textTransform: 'uppercase' }}>Playlists</span>
+          <button onClick={() => { setAdding(a => !a); setAddError(null) }} style={{
+            background: '#1A1A1A', border: '1px solid #2A2A2A', color: '#F0F0F0',
+            borderRadius: 6, padding: '5px 14px', fontSize: 11, fontWeight: 500,
+            letterSpacing: '0.04em', cursor: 'pointer',
+          }}>{adding ? 'Cancel' : '+ Add Playlist'}</button>
         </div>
+
+        {/* Add playlist form */}
+        {adding && (
+          <div style={{
+            background: '#0D0D0D', border: '1px solid #2A2A2A', borderRadius: 6,
+            padding: 12, marginBottom: 16, display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap',
+          }}>
+            <input
+              value={newName}
+              onChange={e => setNewName(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') addPlaylist() }}
+              placeholder="Name"
+              autoFocus
+              style={{
+                background: '#1A1A1A', border: '1px solid #2A2A2A', color: '#F0F0F0',
+                borderRadius: 6, padding: '6px 10px', fontSize: 12, width: 200, outline: 'none',
+              }}
+            />
+            <input
+              value={newUrl}
+              onChange={e => setNewUrl(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') addPlaylist() }}
+              placeholder="https://open.spotify.com/playlist/..."
+              style={{
+                background: '#1A1A1A', border: '1px solid #2A2A2A', color: '#F0F0F0',
+                borderRadius: 6, padding: '6px 10px', fontSize: 12, flex: 1, minWidth: 260, outline: 'none',
+              }}
+            />
+            <button onClick={addPlaylist} style={{
+              background: '#E0142A', border: '1px solid #E0142A', color: '#FFFFFF',
+              borderRadius: 6, padding: '6px 16px', fontSize: 11, fontWeight: 600,
+              letterSpacing: '0.06em', cursor: 'pointer',
+            }}>Add</button>
+            {addError && <span style={{ fontSize: 11, color: '#E0142A', width: '100%' }}>{addError}</span>}
+          </div>
+        )}
 
         {/* Column headers */}
         <div style={{ display: 'flex', alignItems: 'center', padding: '0 12px 8px', borderBottom: '1px solid #1E1E1E', marginBottom: 4 }}>
           <span style={{ flex: 1, fontSize: 10, color: '#444', letterSpacing: '0.06em', textTransform: 'uppercase' }}>Name</span>
           <span style={{ width: 160, textAlign: 'center', fontSize: 10, color: '#444', letterSpacing: '0.06em', textTransform: 'uppercase' }}>Days Since Checked</span>
           <span style={{ width: 110 }} />
+          <span style={{ width: 32 }} />
         </div>
 
         {playlists.map(pl => {
@@ -162,6 +261,21 @@ export default function DailyCheckView() {
                     }}
                   >Checked?</button>
                 )}
+              </div>
+
+              {/* Delete */}
+              <div style={{ width: 32, textAlign: 'right' }}>
+                <button
+                  onClick={() => deletePlaylist(pl.playlist_id, pl.name)}
+                  title="Remove playlist"
+                  style={{
+                    background: 'transparent', border: 'none', color: '#444',
+                    fontSize: 16, lineHeight: 1, padding: '2px 6px', cursor: 'pointer',
+                    transition: 'color 0.15s ease',
+                  }}
+                  onMouseEnter={e => (e.currentTarget.style.color = '#E0142A')}
+                  onMouseLeave={e => (e.currentTarget.style.color = '#444')}
+                >×</button>
               </div>
             </div>
           )
